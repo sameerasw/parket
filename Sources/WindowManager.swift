@@ -1,38 +1,93 @@
 import AppKit
 import ApplicationServices
 
+struct WindowGroupKey: Hashable {
+    let pid: pid_t
+    let frame: WindowFrameKey
+
+    init(pid: pid_t, frame: CGRect) {
+        self.pid = pid
+        self.frame = WindowFrameKey(frame)
+    }
+}
+
+struct WindowFrameKey: Hashable {
+    private static let unit: CGFloat = 16
+
+    let x: Int
+    let y: Int
+    let width: Int
+    let height: Int
+
+    init(_ frame: CGRect) {
+        x = Self.quantize(frame.origin.x)
+        y = Self.quantize(frame.origin.y)
+        width = Self.quantize(frame.width)
+        height = Self.quantize(frame.height)
+    }
+
+    private static func quantize(_ value: CGFloat) -> Int {
+        guard value.isFinite else { return 0 }
+        return Int((value / unit).rounded())
+    }
+}
+
 struct TrackedWindow: Equatable {
     let element: AXUIElement
+    let focusElement: AXUIElement
+    let members: [AXUIElement]
     let pid: pid_t
+    let group: WindowGroupKey
+
+    init(element: AXUIElement, pid: pid_t, members: [AXUIElement] = [], group: WindowGroupKey? = nil) {
+        let window = WindowManager.canonicalWindowElement(element) ?? element
+        self.element = window
+        self.focusElement = element
+        self.members = TrackedWindow.unique([window] + members)
+        self.pid = pid
+        self.group = group ?? WindowGroupKey(pid: pid, frame: WindowManager.frame(of: window) ?? .null)
+    }
 
     static func == (lhs: TrackedWindow, rhs: TrackedWindow) -> Bool {
-        CFEqual(lhs.element, rhs.element)
+        if lhs.hasElement(rhs) {
+            return true
+        }
+        return lhs.group == rhs.group
+    }
+
+    func hasElement(_ other: TrackedWindow) -> Bool {
+        references.contains { left in
+            other.references.contains { CFEqual(left, $0) }
+        }
+    }
+
+    func hasSameMembers(_ other: TrackedWindow) -> Bool {
+        members.count == other.members.count
+            && members.allSatisfy { member in other.members.contains { CFEqual(member, $0) } }
     }
 
     func getFrame() -> CGRect? {
-        var posValue: AnyObject?
-        var sizeValue: AnyObject?
-        guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &posValue) == .success,
-              AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeValue) == .success
-        else { return nil }
+        WindowManager.frame(of: element)
+    }
 
-        var pos = CGPoint.zero
-        var size = CGSize.zero
-        AXValueGetValue(posValue as! AXValue, .cgPoint, &pos)
-        AXValueGetValue(sizeValue as! AXValue, .cgSize, &size)
-        return CGRect(origin: pos, size: size)
+    func keepingMembers(from current: TrackedWindow) -> TrackedWindow {
+        TrackedWindow(element: focusElement, pid: pid, members: current.members, group: group)
     }
 
     func setPosition(_ point: CGPoint) {
         var p = point
         guard let value = AXValueCreate(.cgPoint, &p) else { return }
-        AXUIElementSetAttributeValue(element, kAXPositionAttribute as CFString, value)
+        for member in members {
+            AXUIElementSetAttributeValue(member, kAXPositionAttribute as CFString, value)
+        }
     }
 
     func setSize(_ size: CGSize) {
         var s = size
         guard let value = AXValueCreate(.cgSize, &s) else { return }
-        AXUIElementSetAttributeValue(element, kAXSizeAttribute as CFString, value)
+        for member in members {
+            AXUIElementSetAttributeValue(member, kAXSizeAttribute as CFString, value)
+        }
     }
 
     func hideOffscreen(_ screen: CGRect) {
@@ -45,11 +100,14 @@ struct TrackedWindow: Equatable {
     }
 
     func focus() {
-        AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
-        AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
         if let app = NSRunningApplication(processIdentifier: pid) {
             app.activate()
         }
+        AXUIElementPerformAction(element, kAXRaiseAction as CFString)
+        AXUIElementSetAttributeValue(element, kAXMainAttribute as CFString, kCFBooleanTrue)
+        AXUIElementSetAttributeValue(element, kAXFocusedAttribute as CFString, kCFBooleanTrue)
+        AXUIElementSetAttributeValue(focusElement, kAXMainAttribute as CFString, kCFBooleanTrue)
+        AXUIElementSetAttributeValue(focusElement, kAXFocusedAttribute as CFString, kCFBooleanTrue)
     }
 
     func raise() {
@@ -57,6 +115,100 @@ struct TrackedWindow: Equatable {
     }
 
     func isTileable() -> Bool {
+        WindowManager.isTileable(element)
+    }
+
+    func title() -> String? {
+        var value: AnyObject?
+        guard AXUIElementCopyAttributeValue(element, kAXTitleAttribute as CFString, &value) == .success else {
+            return nil
+        }
+        return value as? String
+    }
+
+    private static func unique(_ elements: [AXUIElement]) -> [AXUIElement] {
+        var result: [AXUIElement] = []
+        for element in elements where !result.contains(where: { CFEqual($0, element) }) {
+            result.append(element)
+        }
+        return result
+    }
+
+    private var references: [AXUIElement] {
+        TrackedWindow.unique([element, focusElement] + members)
+    }
+}
+
+enum WindowManager {
+    static func allWindows() -> [TrackedWindow] {
+        var result: [TrackedWindow] = []
+        for app in NSWorkspace.shared.runningApplications {
+            guard app.activationPolicy == .regular else { continue }
+            let pid = app.processIdentifier
+            let appRef = AXUIElementCreateApplication(pid)
+
+            var windowsValue: AnyObject?
+            guard AXUIElementCopyAttributeValue(appRef, kAXWindowsAttribute as CFString, &windowsValue) == .success,
+                  let windows = windowsValue as? [AXUIElement]
+            else { continue }
+
+            result.append(contentsOf: trackedWindows(pid: pid, windows: windows))
+        }
+        return result
+    }
+
+    static func windows(pid: pid_t) -> [TrackedWindow]? {
+        let appRef = AXUIElementCreateApplication(pid)
+
+        var windowsValue: AnyObject?
+        guard AXUIElementCopyAttributeValue(appRef, kAXWindowsAttribute as CFString, &windowsValue) == .success,
+              let windows = windowsValue as? [AXUIElement]
+        else { return nil }
+
+        return trackedWindows(pid: pid, windows: windows)
+    }
+
+    static func trackedWindows(pid: pid_t, windows: [AXUIElement]) -> [TrackedWindow] {
+        let candidates = windows.compactMap { WindowCandidate(element: $0, pid: pid) }
+        var result: [TrackedWindow] = []
+
+        for candidate in candidates {
+            let related = candidates
+                .filter { candidate.matches($0) }
+                .map(\.window)
+            let window = TrackedWindow(element: candidate.element, pid: pid, members: related, group: candidate.group)
+            guard !result.contains(window) else { continue }
+            result.append(window)
+        }
+
+        return result
+    }
+
+    static func focusedWindow() -> TrackedWindow? {
+        guard let frontApp = NSWorkspace.shared.frontmostApplication else { return nil }
+        let pid = frontApp.processIdentifier
+        let appRef = AXUIElementCreateApplication(pid)
+
+        if let focused = trackedWindow(appRef, kAXFocusedUIElementAttribute as CFString, pid: pid) {
+            return focused
+        }
+        return trackedWindow(appRef, kAXFocusedWindowAttribute as CFString, pid: pid)
+    }
+
+    private static func trackedWindow(_ appRef: AXUIElement, _ attribute: CFString, pid: pid_t) -> TrackedWindow? {
+        var value: AnyObject?
+        guard AXUIElementCopyAttributeValue(appRef, attribute, &value) == .success,
+              CFGetTypeID(value) == AXUIElementGetTypeID()
+        else {
+            return nil
+        }
+        let element = value as! AXUIElement
+        let window = TrackedWindow(element: element, pid: pid)
+        guard window.isTileable() else { return nil }
+        return window
+    }
+
+    static func isTileable(_ element: AXUIElement) -> Bool {
         let attrs = [
             kAXRoleAttribute,
             kAXSubroleAttribute,
@@ -80,51 +232,6 @@ struct TrackedWindow: Equatable {
             && !fullscreen
     }
 
-    func title() -> String? {
-        var value: AnyObject?
-        guard AXUIElementCopyAttributeValue(element, kAXTitleAttribute as CFString, &value) == .success else {
-            return nil
-        }
-        return value as? String
-    }
-}
-
-enum WindowManager {
-    static func allWindows() -> [TrackedWindow] {
-        var result: [TrackedWindow] = []
-        for app in NSWorkspace.shared.runningApplications {
-            guard app.activationPolicy == .regular else { continue }
-            let pid = app.processIdentifier
-            let appRef = AXUIElementCreateApplication(pid)
-
-            var windowsValue: AnyObject?
-            guard AXUIElementCopyAttributeValue(appRef, kAXWindowsAttribute as CFString, &windowsValue) == .success,
-                  let windows = windowsValue as? [AXUIElement]
-            else { continue }
-
-            for win in windows {
-                let tw = TrackedWindow(element: win, pid: pid)
-                guard tw.isTileable() else { continue }
-                result.append(tw)
-            }
-        }
-        return result
-    }
-
-    static func focusedWindow() -> TrackedWindow? {
-        guard let frontApp = NSWorkspace.shared.frontmostApplication else { return nil }
-        let pid = frontApp.processIdentifier
-        let appRef = AXUIElementCreateApplication(pid)
-
-        var value: AnyObject?
-        guard AXUIElementCopyAttributeValue(appRef, kAXFocusedWindowAttribute as CFString, &value) == .success else {
-            return nil
-        }
-        let win = value as! AXUIElement
-        guard isStandardWindow(win) else { return nil }
-        return TrackedWindow(element: win, pid: pid)
-    }
-
     static func isStandardWindow(_ element: AXUIElement) -> Bool {
         var roleValue: AnyObject?
         var subroleValue: AnyObject?
@@ -136,6 +243,31 @@ enum WindowManager {
         let role = roleValue as? String
         let subrole = subroleValue as? String
         return role == kAXWindowRole && subrole == kAXStandardWindowSubrole
+    }
+
+    static func canonicalWindowElement(_ element: AXUIElement) -> AXUIElement? {
+        var value: AnyObject?
+        guard AXUIElementCopyAttributeValue(element, kAXWindowAttribute as CFString, &value) == .success,
+              CFGetTypeID(value) == AXUIElementGetTypeID()
+        else { return nil }
+
+        let window = value as! AXUIElement
+        guard isStandardWindow(window) else { return nil }
+        return window
+    }
+
+    static func frame(of element: AXUIElement) -> CGRect? {
+        var posValue: AnyObject?
+        var sizeValue: AnyObject?
+        guard AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &posValue) == .success,
+              AXUIElementCopyAttributeValue(element, kAXSizeAttribute as CFString, &sizeValue) == .success
+        else { return nil }
+
+        var pos = CGPoint.zero
+        var size = CGSize.zero
+        AXValueGetValue(posValue as! AXValue, .cgPoint, &pos)
+        AXValueGetValue(sizeValue as! AXValue, .cgSize, &size)
+        return CGRect(origin: pos, size: size)
     }
 
     static func screenFrame() -> CGRect {
@@ -165,5 +297,35 @@ enum WindowManager {
 
     static func displayID(for screen: NSScreen) -> CGDirectDisplayID {
         screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID ?? 0
+    }
+}
+
+private struct WindowCandidate {
+    private static let minOverlap: CGFloat = 0.88
+
+    let element: AXUIElement
+    let window: AXUIElement
+    let frame: CGRect
+    let group: WindowGroupKey
+
+    init?(element: AXUIElement, pid: pid_t) {
+        let window = WindowManager.canonicalWindowElement(element) ?? element
+        guard WindowManager.isTileable(window), let frame = WindowManager.frame(of: window) else { return nil }
+        self.element = element
+        self.window = window
+        self.frame = frame
+        self.group = WindowGroupKey(pid: pid, frame: frame)
+    }
+
+    func matches(_ other: WindowCandidate) -> Bool {
+        group == other.group || overlap(frame, other.frame) >= Self.minOverlap
+    }
+
+    private func overlap(_ lhs: CGRect, _ rhs: CGRect) -> CGFloat {
+        let area = min(lhs.width * lhs.height, rhs.width * rhs.height)
+        guard area > 0 else { return 0 }
+        let intersection = lhs.intersection(rhs)
+        guard !intersection.isNull else { return 0 }
+        return max(0, intersection.width * intersection.height) / area
     }
 }

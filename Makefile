@@ -2,6 +2,9 @@ APP_NAME = parket
 BUNDLE = $(APP_NAME).app
 INSTALL_DIR = /Applications/$(BUNDLE)
 BUILD_DIR = .build/release
+BUNDLE_ID = com.parket.app
+CODESIGN_IDENTITY ?= -
+CODESIGN_REQUIREMENTS ?= =designated => identifier "$(BUNDLE_ID)"
 
 .PHONY: build test check install clean dist benchmark
 
@@ -22,7 +25,7 @@ install: build
 		echo "grant accessibility permission in system settings, then: open /Applications/$(APP_NAME).app"; \
 	fi
 	cp $(BUILD_DIR)/$(APP_NAME) $(INSTALL_DIR)/Contents/MacOS/
-	codesign --force --sign - $(INSTALL_DIR)
+	codesign --force --sign "$(CODESIGN_IDENTITY)" --requirements '$(CODESIGN_REQUIREMENTS)' $(INSTALL_DIR)
 	@echo "updated $(INSTALL_DIR)"
 
 dist: build
@@ -30,7 +33,7 @@ dist: build
 	mkdir -p $(BUNDLE)/Contents/MacOS
 	cp Info.plist $(BUNDLE)/Contents/
 	cp $(BUILD_DIR)/$(APP_NAME) $(BUNDLE)/Contents/MacOS/
-	codesign --force --sign - $(BUNDLE)
+	codesign --force --sign "$(CODESIGN_IDENTITY)" --requirements '$(CODESIGN_REQUIREMENTS)' $(BUNDLE)
 	zip -r $(APP_NAME).zip $(BUNDLE)
 	@shasum -a 256 $(APP_NAME).zip
 

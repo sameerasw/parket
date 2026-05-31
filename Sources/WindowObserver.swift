@@ -36,44 +36,34 @@ package final class WindowObserver {
 
         for app in NSWorkspace.shared.runningApplications {
             guard app.activationPolicy == .regular else { continue }
-            observeApp(pid: app.processIdentifier)
+            let pid = app.processIdentifier
+            observeApp(pid: pid)
+            if let windows = WindowManager.windows(pid: pid) {
+                observeWindowDestruction(windows: windows, pid: pid)
+            }
         }
     }
 
     private func handleAppLaunched(_ app: NSRunningApplication) {
         let pid = app.processIdentifier
         observeApp(pid: pid)
-        tryAdoptWindows(pid: pid, attempt: 0)
+        trySyncWindows(pid: pid, attempt: 0)
     }
 
-    private func tryAdoptWindows(pid: pid_t, attempt: Int) {
-        let appRef = AXUIElementCreateApplication(pid)
-
-        var windowsValue: AnyObject?
-        guard AXUIElementCopyAttributeValue(appRef, kAXWindowsAttribute as CFString, &windowsValue) == .success,
-              let windows = windowsValue as? [AXUIElement]
-        else {
-            if attempt < Self.maxRetries {
-                DispatchQueue.main.asyncAfter(deadline: .now() + Self.retryInterval) {
-                    self.tryAdoptWindows(pid: pid, attempt: attempt + 1)
-                }
-            }
+    private func trySyncWindows(pid: pid_t, attempt: Int) {
+        guard let windows = WindowManager.windows(pid: pid), !windows.isEmpty else {
+            retrySyncWindows(pid: pid, attempt: attempt)
             return
         }
 
-        var added = false
-        for win in windows {
-            let tw = TrackedWindow(element: win, pid: pid)
-            guard tw.isTileable() else { continue }
-            WorkspaceManager.shared.addWindow(tw)
-            observeWindowDestruction(element: win, pid: pid)
-            added = true
-        }
+        WorkspaceManager.shared.syncWindows(pid: pid, windows: windows)
+        observeWindowDestruction(windows: windows, pid: pid)
+    }
 
-        if !added && attempt < Self.maxRetries {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Self.retryInterval) {
-                self.tryAdoptWindows(pid: pid, attempt: attempt + 1)
-            }
+    private func retrySyncWindows(pid: pid_t, attempt: Int) {
+        guard attempt < Self.maxRetries else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.retryInterval) {
+            self.trySyncWindows(pid: pid, attempt: attempt + 1)
         }
     }
 
@@ -97,15 +87,15 @@ package final class WindowObserver {
         if notif == kAXWindowCreatedNotification {
             var pidValue: pid_t = 0
             AXUIElementGetPid(element, &pidValue)
-            WindowObserver.shared.tryAdoptWindow(element: element, pid: pidValue, attempt: 0)
+            WindowObserver.shared.trySyncWindows(pid: pidValue, attempt: 0)
         } else if notif == kAXUIElementDestroyedNotification {
             var pidValue: pid_t = 0
             AXUIElementGetPid(element, &pidValue)
             if let obs = WindowObserver.shared.observers[pidValue] {
                 AXObserverRemoveNotification(obs, element, kAXUIElementDestroyedNotification as CFString)
             }
-            let tw = TrackedWindow(element: element, pid: pidValue)
-            WorkspaceManager.shared.removeWindow(tw)
+            let windows = WindowManager.windows(pid: pidValue) ?? []
+            WorkspaceManager.shared.syncWindows(pid: pidValue, windows: windows)
         }
     }
 
@@ -114,14 +104,10 @@ package final class WindowObserver {
         AXObserverAddNotification(obs, element, kAXUIElementDestroyedNotification as CFString, nil)
     }
 
-    private func tryAdoptWindow(element: AXUIElement, pid: pid_t, attempt: Int) {
-        let tw = TrackedWindow(element: element, pid: pid)
-        if tw.isTileable() {
-            WorkspaceManager.shared.addWindow(tw)
-            observeWindowDestruction(element: element, pid: pid)
-        } else if attempt < Self.maxRetries {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Self.retryInterval) {
-                self.tryAdoptWindow(element: element, pid: pid, attempt: attempt + 1)
+    private func observeWindowDestruction(windows: [TrackedWindow], pid: pid_t) {
+        for window in windows {
+            for member in window.members {
+                observeWindowDestruction(element: member, pid: pid)
             }
         }
     }

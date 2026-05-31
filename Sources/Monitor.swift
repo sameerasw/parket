@@ -1,5 +1,12 @@
 import AppKit
 
+enum WindowUpdate {
+    case missing
+    case inserted
+    case replaced
+    case unchanged
+}
+
 package final class Monitor {
     let displayID: CGDirectDisplayID
     var screen: NSScreen
@@ -37,32 +44,56 @@ package final class Monitor {
         guard let focused = WindowManager.focusedWindow() else { return }
 
         guard let i = workspaces[active].firstIndex(of: focused) else { return }
+        let moved = focused.keepingMembers(from: workspaces[active][i])
         workspaces[active].remove(at: i)
-        workspaces[index].insert(focused, at: 0)
+        workspaces[index].insert(moved, at: 0)
 
         retile()
-        focused.hideOffscreen(WindowManager.screenRect(for: self.screen))
+        moved.hideOffscreen(WindowManager.screenRect(for: self.screen))
 
         if let next = workspaces[active].first {
             next.focus()
         }
     }
 
-    func insertWindow(_ window: TrackedWindow) {
-        for ws in workspaces where ws.contains(window) { return }
+    @discardableResult
+    func insertWindow(_ window: TrackedWindow) -> Bool {
+        guard updateExistingWindow(window) == .missing else { return false }
         workspaces[active].insert(window, at: 0)
-    }
-
-    func addWindow(_ window: TrackedWindow) {
-        insertWindow(window)
-        scheduleRetile()
+        return true
     }
 
     @discardableResult
-    func removeFromActive(_ window: TrackedWindow) -> Bool {
-        guard let i = workspaces[active].firstIndex(of: window) else { return false }
-        workspaces[active].remove(at: i)
-        return true
+    func addWindow(_ window: TrackedWindow) -> WindowUpdate {
+        let existing = updateExistingWindow(window)
+        guard existing == .missing else { return existing }
+        workspaces[active].insert(window, at: 0)
+        scheduleRetile()
+        return .inserted
+    }
+
+    func updateExistingWindow(_ window: TrackedWindow) -> WindowUpdate {
+        for ws in 0..<workspaces.count {
+            guard let i = workspaces[ws].firstIndex(of: window) else { continue }
+            let current = workspaces[ws][i]
+            if current.hasElement(window) {
+                if current.group != window.group || !current.hasSameMembers(window) {
+                    workspaces[ws][i] = window
+                    return .replaced
+                }
+                return .unchanged
+            }
+            if current.isTileable() {
+                if current.group == window.group && !current.hasSameMembers(window) {
+                    workspaces[ws][i] = window
+                    return .replaced
+                }
+                return .unchanged
+            }
+            workspaces[ws][i] = window
+            return .replaced
+        }
+        return .missing
     }
 
     func removeWindows(where predicate: (TrackedWindow) -> Bool) -> Bool {
@@ -78,6 +109,12 @@ package final class Monitor {
         }
         if changed && needsRetile { scheduleRetile() }
         return changed
+    }
+
+    func removeStaleWindows(pid: pid_t, current: [TrackedWindow]) -> Bool {
+        removeWindows { window in
+            window.pid == pid && !current.contains(window)
+        }
     }
 
     func containsWindow(_ window: TrackedWindow) -> Bool {
@@ -133,10 +170,19 @@ package final class Monitor {
 
     @discardableResult
     func retile() -> CGRect {
-        workspaces[active].removeAll { !$0.isTileable() }
+        cleanActiveWorkspace()
         let screen = WindowManager.screenFrame(for: self.screen)
         Tiler.tile(windows: workspaces[active], screen: screen, layout: layouts[active])
         return screen
+    }
+
+    private func cleanActiveWorkspace() {
+        var windows: [TrackedWindow] = []
+        for window in workspaces[active] {
+            guard window.isTileable(), !windows.contains(window) else { continue }
+            windows.append(window)
+        }
+        workspaces[active] = windows
     }
 
     package func resizeWorkspaces(to count: Int) {
@@ -166,6 +212,7 @@ package final class Monitor {
         guard let focused = WindowManager.focusedWindow(),
               let i = workspaces[active].firstIndex(of: focused)
         else { return }
+        workspaces[active][i] = focused.keepingMembers(from: workspaces[active][i])
         focusedIndices[active] = i
     }
 

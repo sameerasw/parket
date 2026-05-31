@@ -41,10 +41,37 @@ package final class WorkspaceManager {
         StatusBar.shared.update()
     }
 
-    func addWindow(_ window: TrackedWindow) {
-        for monitor in monitors where monitor.containsWindow(window) { return }
-        focusedMonitor.addWindow(window)
-        StatusBar.shared.update()
+    @discardableResult
+    func addWindow(_ window: TrackedWindow) -> WindowUpdate {
+        for monitor in monitors {
+            let result = monitor.updateExistingWindow(window)
+            if result != .missing {
+                return result
+            }
+        }
+        let result = focusedMonitor.addWindow(window)
+        if result == .inserted {
+            StatusBar.shared.update()
+        }
+        return result
+    }
+
+    func syncWindows(pid: pid_t, windows: [TrackedWindow]) {
+        var changed = false
+        for monitor in monitors {
+            if monitor.removeStaleWindows(pid: pid, current: windows) {
+                changed = true
+            }
+        }
+
+        for window in windows {
+            let result = addWindow(window)
+            changed = changed || result == .inserted || result == .replaced
+        }
+
+        if changed {
+            StatusBar.shared.update()
+        }
     }
 
     func removeWindow(pid: pid_t) {
@@ -52,7 +79,7 @@ package final class WorkspaceManager {
     }
 
     func removeWindow(_ window: TrackedWindow) {
-        removeWindows { $0 == window }
+        removeWindows { $0.hasElement(window) }
     }
 
     private func removeWindows(where predicate: (TrackedWindow) -> Bool) {
@@ -97,16 +124,18 @@ package final class WorkspaceManager {
         guard let focused = WindowManager.focusedWindow() else { return }
 
         let source = focusedMonitor
-        guard source.removeFromActive(focused) else { return }
+        guard let i = source.workspaces[source.active].firstIndex(of: focused) else { return }
+        let moved = focused.keepingMembers(from: source.workspaces[source.active][i])
+        source.workspaces[source.active].remove(at: i)
         source.retile()
 
         let targetIndex = (focusedMonitorIndex + offset + monitors.count) % monitors.count
         let target = monitors[targetIndex]
-        target.insertWindow(focused)
+        target.insertWindow(moved)
         target.retile()
 
         focusedMonitorIndex = targetIndex
-        focused.focus()
+        moved.focus()
         StatusBar.shared.update()
     }
 
