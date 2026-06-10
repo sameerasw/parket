@@ -95,24 +95,74 @@ struct TrackedWindow: Equatable {
     }
 
     func hideOffscreen(_ screen: CGRect) {
+        setSize(CGSize(width: 1, height: 1))
+        let screens = NSScreen.screens
+        let rect = screen
+        
+        var hasScreenBelow = false
+        var hasScreenAbove = false
+        var hasScreenLeft = false
+        var hasScreenRight = false
+        
+        for s in screens {
+            let r = WindowManager.screenRect(for: s)
+            guard r != rect else { continue }
+            
+            if r.origin.y >= rect.maxY - 10 {
+                if max(rect.origin.x, r.origin.x) < min(rect.maxX, r.maxX) {
+                    hasScreenBelow = true
+                }
+            }
+            if r.maxY <= rect.origin.y + 10 {
+                if max(rect.origin.x, r.origin.x) < min(rect.maxX, r.maxX) {
+                    hasScreenAbove = true
+                }
+            }
+            if r.maxX <= rect.origin.x + 10 {
+                if max(rect.origin.y, r.origin.y) < min(rect.maxY, r.maxY) {
+                    hasScreenLeft = true
+                }
+            }
+            if r.origin.x >= rect.maxX - 10 {
+                if max(rect.origin.y, r.origin.y) < min(rect.maxY, r.maxY) {
+                    hasScreenRight = true
+                }
+            }
+        }
+        
+        var targetPos = Config.shared.inactiveWindowPosition
+        
+        if targetPos == .bottom && hasScreenBelow {
+            targetPos = .top
+        }
+        if targetPos == .top && hasScreenAbove {
+            targetPos = .bottom
+        }
+        if targetPos == .right && hasScreenRight {
+            targetPos = .left
+        }
+        if targetPos == .left && hasScreenLeft {
+            targetPos = .right
+        }
+        
         let position: CGPoint
-        switch Config.shared.inactiveWindowPosition {
+        switch targetPos {
         case .left:
-            position = CGPoint(x: screen.origin.x - 30000, y: screen.midY)
+            position = CGPoint(x: rect.origin.x - 30000, y: rect.midY)
         case .right:
-            position = CGPoint(x: screen.maxX + 30000, y: screen.midY)
+            position = CGPoint(x: rect.maxX + 30000, y: rect.midY)
         case .top:
-            position = CGPoint(x: screen.midX, y: screen.origin.y - 30000)
+            position = CGPoint(x: rect.midX, y: rect.origin.y - 30000)
         case .bottom:
-            position = CGPoint(x: screen.midX, y: screen.maxY + 30000)
+            position = CGPoint(x: rect.midX, y: rect.maxY + 30000)
         case .topLeft:
-            position = CGPoint(x: screen.origin.x - 30000, y: screen.origin.y - 30000)
+            position = CGPoint(x: rect.origin.x - 30000, y: rect.origin.y - 30000)
         case .topRight:
-            position = CGPoint(x: screen.maxX + 30000, y: screen.origin.y - 30000)
+            position = CGPoint(x: rect.maxX + 30000, y: rect.origin.y - 30000)
         case .bottomLeft:
-            position = CGPoint(x: screen.origin.x - 30000, y: screen.maxY + 30000)
+            position = CGPoint(x: rect.origin.x - 30000, y: rect.maxY + 30000)
         case .bottomRight:
-            position = CGPoint(x: screen.maxX + 30000, y: screen.maxY + 30000)
+            position = CGPoint(x: rect.maxX + 30000, y: rect.maxY + 30000)
         }
         
         setPosition(position)

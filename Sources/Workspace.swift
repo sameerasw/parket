@@ -95,6 +95,31 @@ package final class WorkspaceManager {
         StatusBar.shared.update()
     }
 
+    func refresh() {
+        let windows = WindowManager.allWindows()
+        for monitor in monitors {
+            _ = monitor.removeWindows { window in
+                !windows.contains(window)
+            }
+        }
+        for window in windows {
+            _ = addWindow(window)
+        }
+        for monitor in monitors {
+            for (idx, ws) in monitor.workspaces.enumerated() {
+                if idx != monitor.active {
+                    let rect = WindowManager.screenRect(for: monitor.screen)
+                    for win in ws {
+                        win.hideOffscreen(rect)
+                    }
+                }
+            }
+            monitor.retile()
+        }
+        syncApplicationVisibility()
+        StatusBar.shared.update()
+    }
+
     @discardableResult
     func addWindow(_ window: TrackedWindow) -> WindowUpdate {
         for monitor in monitors {
@@ -450,9 +475,21 @@ package final class WorkspaceManager {
     }
 
     private func monitorForWindow(_ window: TrackedWindow) -> Monitor {
-        guard monitors.count > 1, let frame = window.getFrame() else {
+        guard monitors.count > 1, var frame = window.getFrame() else {
             return monitors[0]
         }
+        
+        if frame.origin.x < -10000 {
+            frame.origin.x += 30000
+        } else if frame.origin.x > 20000 {
+            frame.origin.x -= 30000
+        }
+        if frame.origin.y < -10000 {
+            frame.origin.y += 30000
+        } else if frame.origin.y > 20000 {
+            frame.origin.y -= 30000
+        }
+        
         let center = CGPoint(x: frame.midX, y: frame.midY)
         for monitor in monitors {
             let rect = WindowManager.screenRect(for: monitor.screen)
@@ -460,10 +497,29 @@ package final class WorkspaceManager {
                 return monitor
             }
         }
-        return monitors[0]
+        
+        var closestMonitor = monitors[0]
+        var minDistance = CGFloat.greatestFiniteMagnitude
+        for monitor in monitors {
+            let rect = WindowManager.screenRect(for: monitor.screen)
+            let monitorCenter = CGPoint(x: rect.midX, y: rect.midY)
+            let dx = center.x - monitorCenter.x
+            let dy = center.y - monitorCenter.y
+            let dist = dx * dx + dy * dy
+            if dist < minDistance {
+                minDistance = dist
+                closestMonitor = monitor
+            }
+        }
+        return closestMonitor
     }
 
     private func syncApplicationVisibility() {
+        let now = ProcessInfo.processInfo.systemUptime
+        for monitor in monitors {
+            monitor.ignoreGeometryUntil = now + 0.8
+        }
+
         guard Config.shared.hideInactiveApps else {
             for app in NSWorkspace.shared.runningApplications {
                 if app.activationPolicy == .regular {
@@ -503,6 +559,19 @@ package final class WorkspaceManager {
         for pid in activePIDs {
             if let app = NSRunningApplication(processIdentifier: pid) {
                 app.unhide()
+            }
+        }
+
+        // Re-apply hideOffscreen for all windows in inactive workspaces that belong to unhidden apps
+        for monitor in monitors {
+            for (idx, ws) in monitor.workspaces.enumerated() {
+                guard idx != monitor.active else { continue }
+                let rect = WindowManager.screenRect(for: monitor.screen)
+                for win in ws {
+                    if activePIDs.contains(win.pid) {
+                        win.hideOffscreen(rect)
+                    }
+                }
             }
         }
     }

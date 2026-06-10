@@ -119,6 +119,7 @@ package struct BuiltinBindings {
     var nextWorkspace: (key: UInt16, shift: Bool) = (Key.e, false)
     var moveWorkspacePrev: (key: UInt16, shift: Bool) = (Key.q, true)
     var moveWorkspaceNext: (key: UInt16, shift: Bool) = (Key.e, true)
+    var refresh: (key: UInt16, shift: Bool) = (Key.r, false)
 }
 
 package struct Config {
@@ -190,9 +191,19 @@ package struct Config {
             config.hideInactiveApps = hideInactive
         }
 
-        if let posStr = toml["inactive_window_position"] as? String,
-           let pos = InactiveWindowPosition(rawValue: posStr) {
-            config.inactiveWindowPosition = pos
+        if let posStr = toml["inactive_window_position"] as? String {
+            let normalized = posStr.lowercased()
+                .replacingOccurrences(of: " ", with: "-")
+                .replacingOccurrences(of: "_", with: "-")
+            
+            if normalized == "left" { config.inactiveWindowPosition = .left }
+            else if normalized == "right" { config.inactiveWindowPosition = .right }
+            else if normalized == "top" { config.inactiveWindowPosition = .top }
+            else if normalized == "bottom" { config.inactiveWindowPosition = .bottom }
+            else if normalized == "top-left" || normalized == "left-top" { config.inactiveWindowPosition = .topLeft }
+            else if normalized == "top-right" || normalized == "right-top" { config.inactiveWindowPosition = .topRight }
+            else if normalized == "bottom-left" || normalized == "left-bottom" { config.inactiveWindowPosition = .bottomLeft }
+            else if normalized == "bottom-right" || normalized == "right-bottom" { config.inactiveWindowPosition = .bottomRight }
         }
 
         if let mod = toml["modifier"] as? String {
@@ -218,6 +229,7 @@ package struct Config {
             applyBinding(bindings, "next_workspace", to: &config.bindings.nextWorkspace)
             applyBinding(bindings, "move_workspace_prev", to: &config.bindings.moveWorkspacePrev)
             applyBinding(bindings, "move_workspace_next", to: &config.bindings.moveWorkspaceNext)
+            applyBinding(bindings, "refresh", to: &config.bindings.refresh)
         }
 
         if let customs = toml["custom"] as? [[String: Any]] {

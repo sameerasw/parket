@@ -118,6 +118,10 @@ package final class Hotkeys {
             DispatchQueue.main.async { WorkspaceManager.shared.moveActiveWindowToNext() }
             return nil
         }
+        if keyCode == b.refresh.key && hasShift == b.refresh.shift {
+            DispatchQueue.main.async { WorkspaceManager.shared.refresh() }
+            return nil
+        }
         if keyCode == b.focusNext.key && hasShift == b.focusNext.shift {
             DispatchQueue.main.async { WorkspaceManager.shared.focusNext() }
             return nil

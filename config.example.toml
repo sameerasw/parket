@@ -41,6 +41,7 @@
 # next_workspace = "e"
 # move_workspace_prev = "shift+q"
 # move_workspace_next = "shift+e"
+# refresh = "r"
 
 # custom key bindings that run shell commands
 # [[custom]]

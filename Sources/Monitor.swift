@@ -9,7 +9,7 @@ enum WindowUpdate {
 
 package final class Monitor {
     private static let geometryDebounceDelay: TimeInterval = 0.08
-    private static let geometrySuppressionDelay: TimeInterval = 0.20
+    private static let geometrySuppressionDelay: TimeInterval = 0.60
     private static let frameTolerance: CGFloat = 2.0
 
     let displayID: CGDirectDisplayID
@@ -23,7 +23,7 @@ package final class Monitor {
     var previousActive: Int = 0
     private var retileScheduled = false
     private var geometryRetileWork: DispatchWorkItem?
-    private var ignoreGeometryUntil: TimeInterval = 0
+    package var ignoreGeometryUntil: TimeInterval = 0
 
     init(displayID: CGDirectDisplayID, screen: NSScreen) {
         self.displayID = displayID
@@ -242,7 +242,7 @@ package final class Monitor {
             guard active == scheduledActive else { return }
             guard ProcessInfo.processInfo.systemUptime >= ignoreGeometryUntil else { return }
             guard !activeWorkspaceMatchesLayout(tolerance: Self.frameTolerance) else { return }
-            if layouts[active] == .tile {
+            if layouts[active] == .tile && NSEvent.pressedMouseButtons != 0 {
                 updateRatiosFromActualFrames()
             }
             retile()
@@ -269,6 +269,10 @@ package final class Monitor {
     private func cleanActiveWorkspace() {
         var windows: [TrackedWindow] = []
         for window in workspaces[active] {
+            if let app = NSRunningApplication(processIdentifier: window.pid), app.isHidden {
+                windows.append(window)
+                continue
+            }
             guard window.isTileable(), !windows.contains(window) else { continue }
             windows.append(window)
         }
