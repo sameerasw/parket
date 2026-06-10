@@ -1,0 +1,44 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:parket}",
+            "name": "Debug parket-tests",
+            "target": "parket-tests",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug parket-tests"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:parket}",
+            "name": "Release parket-tests",
+            "target": "parket-tests",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release parket-tests"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:parket}",
+            "name": "Debug parket",
+            "target": "parket",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug parket"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:parket}",
+            "name": "Release parket",
+            "target": "parket",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release parket"
+        }
+    ]
+}
