@@ -70,6 +70,15 @@ struct TrackedWindow: Equatable {
         references.contains { CFEqual($0, element) }
     }
 
+    var isFloating: Bool {
+        FloatingRegistry.shared.isFloating(self)
+    }
+
+    var floatingFrame: CGRect? {
+        get { FloatingRegistry.shared.floatingFrame(self) }
+        nonmutating set { FloatingRegistry.shared.setFloatingFrame(newValue, for: self) }
+    }
+
     func getFrame() -> CGRect? {
         WindowManager.frame(of: element)
     }

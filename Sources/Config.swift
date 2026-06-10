@@ -120,6 +120,7 @@ package struct BuiltinBindings {
     var moveWorkspacePrev: (key: UInt16, shift: Bool) = (Key.q, true)
     var moveWorkspaceNext: (key: UInt16, shift: Bool) = (Key.e, true)
     var refresh: (key: UInt16, shift: Bool) = (Key.r, false)
+    var toggleFloat: (key: UInt16, shift: Bool) = (Key.p, false)
 }
 
 package struct Config {
@@ -230,6 +231,7 @@ package struct Config {
             applyBinding(bindings, "move_workspace_prev", to: &config.bindings.moveWorkspacePrev)
             applyBinding(bindings, "move_workspace_next", to: &config.bindings.moveWorkspaceNext)
             applyBinding(bindings, "refresh", to: &config.bindings.refresh)
+            applyBinding(bindings, "toggle_float", to: &config.bindings.toggleFloat)
         }
 
         if let customs = toml["custom"] as? [[String: Any]] {

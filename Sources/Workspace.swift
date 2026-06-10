@@ -200,6 +200,18 @@ package final class WorkspaceManager {
         StatusBar.shared.update()
     }
 
+    func toggleActiveWindowFloating() {
+        guard let focused = WindowManager.focusedWindow() else { return }
+        let isFloating = focused.isFloating
+        FloatingRegistry.shared.setFloating(!isFloating, for: focused)
+        focusedMonitor.retile()
+        if !isFloating {
+            focused.focus()
+            focused.raise()
+        }
+        StatusBar.shared.update()
+    }
+
     func focusMonitor(offset: Int) {
         guard monitors.count > 1 else { return }
         focusedMonitor.saveFocusedIndex()
@@ -222,6 +234,21 @@ package final class WorkspaceManager {
         let targetIndex = (focusedMonitorIndex + offset + monitors.count) % monitors.count
         let target = monitors[targetIndex]
         target.insertWindow(moved)
+        
+        if moved.isFloating, let frame = moved.floatingFrame {
+            let srcScreen = WindowManager.screenFrame(for: source.screen)
+            let destScreen = WindowManager.screenFrame(for: target.screen)
+            let dx = frame.origin.x - srcScreen.origin.x
+            let dy = frame.origin.y - srcScreen.origin.y
+            let newFrame = CGRect(
+                x: destScreen.origin.x + dx,
+                y: destScreen.origin.y + dy,
+                width: frame.width,
+                height: frame.height
+            )
+            moved.floatingFrame = newFrame
+        }
+        
         target.retile()
 
         focusedMonitorIndex = targetIndex

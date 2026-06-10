@@ -138,6 +138,10 @@ package final class Hotkeys {
             DispatchQueue.main.async { WorkspaceManager.shared.toggleLayout() }
             return nil
         }
+        if keyCode == b.toggleFloat.key && hasShift == b.toggleFloat.shift {
+            DispatchQueue.main.async { WorkspaceManager.shared.toggleActiveWindowFloating() }
+            return nil
+        }
 
         return Unmanaged.passRetained(event)
     }

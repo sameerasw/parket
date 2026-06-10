@@ -40,6 +40,9 @@ package final class Monitor {
 
         let screen = WindowManager.screenRect(for: self.screen)
         for win in workspaces[previous] {
+            if win.isFloating, let frame = win.getFrame(), frame.width > 1, frame.height > 1 {
+                win.floatingFrame = frame
+            }
             win.hideOffscreen(screen)
         }
 
@@ -58,6 +61,9 @@ package final class Monitor {
 
             let screen = WindowManager.screenRect(for: self.screen)
             for win in workspaces[previous] {
+                if win.isFloating, let frame = win.getFrame(), frame.width > 1, frame.height > 1 {
+                    win.floatingFrame = frame
+                }
                 win.hideOffscreen(screen)
             }
         }
@@ -256,13 +262,22 @@ package final class Monitor {
         cleanActiveWorkspace()
         let screen = WindowManager.screenFrame(for: self.screen)
         ignoreGeometryUntil = ProcessInfo.processInfo.systemUptime + Self.geometrySuppressionDelay
+        
+        let tiledWindows = workspaces[active].filter { !$0.isFloating }
         Tiler.tile(
-            windows: workspaces[active],
+            windows: tiledWindows,
             screen: screen,
             layout: layouts[active],
             masterRatio: masterRatios[active],
             stackRatios: stackRatios[active]
         )
+        
+        for window in workspaces[active] where window.isFloating {
+            if let frame = window.floatingFrame {
+                window.setFrame(frame)
+            }
+        }
+        
         return screen
     }
 
@@ -280,7 +295,7 @@ package final class Monitor {
     }
 
     private func updateRatiosFromActualFrames() {
-        let windows = workspaces[active]
+        let windows = workspaces[active].filter { !$0.isFloating }
         guard windows.count > 1 else { return }
         let screen = WindowManager.screenFrame(for: self.screen)
         guard screen.width > 0, screen.height > 0 else { return }
@@ -317,7 +332,7 @@ package final class Monitor {
     }
 
     private func activeWorkspaceMatchesLayout(tolerance: CGFloat) -> Bool {
-        let windows = workspaces[active]
+        let windows = workspaces[active].filter { !$0.isFloating }
         let screen = WindowManager.screenFrame(for: self.screen)
         let frames = Tiler.calculateFrames(
             count: windows.count,
