@@ -39,6 +39,7 @@ package final class WorkspaceManager {
         for monitor in monitors {
             monitor.retile()
         }
+        syncApplicationVisibility()
         StatusBar.shared.update()
     }
 
@@ -46,6 +47,7 @@ package final class WorkspaceManager {
         for monitor in monitors {
             monitor.switchTo(index)
         }
+        syncApplicationVisibility()
         StatusBar.shared.update()
     }
 
@@ -89,6 +91,7 @@ package final class WorkspaceManager {
         if let bundleId = bundleIdentifier(for: focused) {
             AppStateStore.shared.saveWorkspace(index, for: bundleId)
         }
+        syncApplicationVisibility()
         StatusBar.shared.update()
     }
 
@@ -112,6 +115,7 @@ package final class WorkspaceManager {
             result = focusedMonitor.addWindow(window)
         }
         if result == .inserted {
+            syncApplicationVisibility()
             StatusBar.shared.update()
         }
         return result
@@ -457,6 +461,50 @@ package final class WorkspaceManager {
             }
         }
         return monitors[0]
+    }
+
+    private func syncApplicationVisibility() {
+        guard Config.shared.hideInactiveApps else {
+            for app in NSWorkspace.shared.runningApplications {
+                if app.activationPolicy == .regular {
+                    app.unhide()
+                }
+            }
+            return
+        }
+
+        var activePIDs = Set<pid_t>()
+        for monitor in monitors {
+            if monitor.active < monitor.workspaces.count {
+                for win in monitor.workspaces[monitor.active] {
+                    activePIDs.insert(win.pid)
+                }
+            }
+        }
+
+        var inactivePIDs = Set<pid_t>()
+        for monitor in monitors {
+            for (idx, ws) in monitor.workspaces.enumerated() {
+                guard idx != monitor.active else { continue }
+                for win in ws {
+                    inactivePIDs.insert(win.pid)
+                }
+            }
+        }
+
+        for pid in inactivePIDs {
+            if !activePIDs.contains(pid) {
+                if let app = NSRunningApplication(processIdentifier: pid) {
+                    app.hide()
+                }
+            }
+        }
+
+        for pid in activePIDs {
+            if let app = NSRunningApplication(processIdentifier: pid) {
+                app.unhide()
+            }
+        }
     }
 
     private func bundleIdentifier(for window: TrackedWindow) -> String? {

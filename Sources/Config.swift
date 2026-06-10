@@ -117,6 +117,7 @@ package struct Config {
     package var masterRatio: CGFloat = 0.50
     package var padding: CGFloat = 0
     package var gap: CGFloat = 0
+    package var hideInactiveApps: Bool = false
     package var modifier: CGEventFlags = .maskAlternate
     package var customBindings: [Binding] = [
         Binding(key: Key.return, shift: true, command: "open -n -a Terminal"),
@@ -171,6 +172,10 @@ package struct Config {
             config.gap = CGFloat(gapVal)
         } else if let gapVal = toml["gap"] as? Int {
             config.gap = CGFloat(gapVal)
+        }
+
+        if let hideInactive = toml["hide_inactive_apps"] as? Bool {
+            config.hideInactiveApps = hideInactive
         }
 
         if let mod = toml["modifier"] as? String {

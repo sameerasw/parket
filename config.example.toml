@@ -13,6 +13,9 @@
 # gap between windows
 # gap = 0
 
+# hide applications that are not on the active workspace
+# hide_inactive_apps = false
+
 # global modifier key: "option", "control", "command"
 # modifier = "option"
 
