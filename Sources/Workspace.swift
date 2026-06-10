@@ -28,7 +28,13 @@ package final class WorkspaceManager {
         focusedMonitorIndex = 0
         let windows = WindowManager.allWindows()
         for window in windows {
-            monitorForWindow(window).insertWindow(window)
+            let monitor = monitorForWindow(window)
+            if let bundleId = bundleIdentifier(for: window),
+               let savedWorkspace = AppStateStore.shared.getWorkspace(for: bundleId) {
+                monitor.insertWindow(window, to: savedWorkspace)
+            } else {
+                monitor.insertWindow(window)
+            }
         }
         for monitor in monitors {
             monitor.retile()
@@ -50,7 +56,11 @@ package final class WorkspaceManager {
     }
 
     func moveActiveWindowTo(_ index: Int) {
+        guard let focused = WindowManager.focusedWindow() else { return }
         focusedMonitor.moveActiveWindowTo(index)
+        if let bundleId = bundleIdentifier(for: focused) {
+            AppStateStore.shared.saveWorkspace(index, for: bundleId)
+        }
         StatusBar.shared.update()
     }
 
@@ -62,7 +72,17 @@ package final class WorkspaceManager {
                 return result
             }
         }
-        let result = focusedMonitor.addWindow(window)
+        let result: WindowUpdate
+        if let bundleId = bundleIdentifier(for: window) {
+            if let savedWorkspace = AppStateStore.shared.getWorkspace(for: bundleId) {
+                result = focusedMonitor.addWindow(window, to: savedWorkspace)
+            } else {
+                AppStateStore.shared.saveWorkspace(focusedMonitor.active, for: bundleId)
+                result = focusedMonitor.addWindow(window)
+            }
+        } else {
+            result = focusedMonitor.addWindow(window)
+        }
         if result == .inserted {
             StatusBar.shared.update()
         }
@@ -409,5 +429,12 @@ package final class WorkspaceManager {
             }
         }
         return monitors[0]
+    }
+
+    private func bundleIdentifier(for window: TrackedWindow) -> String? {
+        if let app = NSRunningApplication(processIdentifier: window.pid) {
+            return app.bundleIdentifier
+        }
+        return nil
     }
 }

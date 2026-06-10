@@ -96,11 +96,40 @@ package final class Monitor {
     }
 
     @discardableResult
+    func insertWindow(_ window: TrackedWindow, to workspaceIndex: Int) -> Bool {
+        guard updateExistingWindow(window) == .missing else { return false }
+        guard workspaceIndex >= 0, workspaceIndex < Config.shared.workspaceCount else {
+            return insertWindow(window)
+        }
+        workspaces[workspaceIndex].insert(window, at: 0)
+        if workspaceIndex != active {
+            window.hideOffscreen(WindowManager.screenRect(for: self.screen))
+        }
+        return true
+    }
+
+    @discardableResult
     func addWindow(_ window: TrackedWindow) -> WindowUpdate {
         let existing = updateExistingWindow(window)
         guard existing == .missing else { return existing }
         workspaces[active].insert(window, at: 0)
         scheduleRetile()
+        return .inserted
+    }
+
+    @discardableResult
+    func addWindow(_ window: TrackedWindow, to workspaceIndex: Int) -> WindowUpdate {
+        let existing = updateExistingWindow(window)
+        guard existing == .missing else { return existing }
+        guard workspaceIndex >= 0, workspaceIndex < Config.shared.workspaceCount else {
+            return addWindow(window)
+        }
+        workspaces[workspaceIndex].insert(window, at: 0)
+        if workspaceIndex == active {
+            scheduleRetile()
+        } else {
+            window.hideOffscreen(WindowManager.screenRect(for: self.screen))
+        }
         return .inserted
     }
 
