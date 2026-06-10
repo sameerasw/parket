@@ -110,7 +110,7 @@ package struct Config {
     package static var shared = Config()
 
     package var workspaceCount: Int = 9
-    package var masterRatio: CGFloat = 0.55
+    package var masterRatio: CGFloat = 0.50
     package var modifier: CGEventFlags = .maskAlternate
     package var customBindings: [Binding] = [
         Binding(key: Key.return, shift: true, command: "open -n -a Terminal"),

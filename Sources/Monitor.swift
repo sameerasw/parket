@@ -17,6 +17,8 @@ package final class Monitor {
     var workspaces: [[TrackedWindow]] = Array(repeating: [], count: Config.shared.workspaceCount)
     var layouts: [Layout] = Array(repeating: .tile, count: Config.shared.workspaceCount)
     var focusedIndices: [Int] = Array(repeating: 0, count: Config.shared.workspaceCount)
+    var masterRatios: [CGFloat] = Array(repeating: Config.shared.masterRatio, count: Config.shared.workspaceCount)
+    var stackRatios: [[CGFloat]] = Array(repeating: [], count: Config.shared.workspaceCount)
     var active: Int = 0
     var previousActive: Int = 0
     private var retileScheduled = false
@@ -240,6 +242,9 @@ package final class Monitor {
             guard active == scheduledActive else { return }
             guard ProcessInfo.processInfo.systemUptime >= ignoreGeometryUntil else { return }
             guard !activeWorkspaceMatchesLayout(tolerance: Self.frameTolerance) else { return }
+            if layouts[active] == .tile {
+                updateRatiosFromActualFrames()
+            }
             retile()
         }
         geometryRetileWork = work
@@ -251,7 +256,13 @@ package final class Monitor {
         cleanActiveWorkspace()
         let screen = WindowManager.screenFrame(for: self.screen)
         ignoreGeometryUntil = ProcessInfo.processInfo.systemUptime + Self.geometrySuppressionDelay
-        Tiler.tile(windows: workspaces[active], screen: screen, layout: layouts[active])
+        Tiler.tile(
+            windows: workspaces[active],
+            screen: screen,
+            layout: layouts[active],
+            masterRatio: masterRatios[active],
+            stackRatios: stackRatios[active]
+        )
         return screen
     }
 
@@ -264,10 +275,40 @@ package final class Monitor {
         workspaces[active] = windows
     }
 
+    private func updateRatiosFromActualFrames() {
+        let windows = workspaces[active]
+        guard windows.count > 1 else { return }
+        let screen = WindowManager.screenFrame(for: self.screen)
+        guard screen.width > 0, screen.height > 0 else { return }
+
+        if let masterFrame = windows[0].getFrame() {
+            let actualMasterWidth = masterFrame.width
+            let proposedMasterRatio = actualMasterWidth / screen.width
+            let clampedMasterRatio = min(max(proposedMasterRatio, 0.1), 0.9)
+            masterRatios[active] = clampedMasterRatio
+        }
+
+        var newStackRatios: [CGFloat] = []
+        for i in 1..<windows.count {
+            if let frame = windows[i].getFrame() {
+                newStackRatios.append(frame.height / screen.height)
+            } else {
+                newStackRatios.append(1.0 / CGFloat(windows.count - 1))
+            }
+        }
+        stackRatios[active] = newStackRatios
+    }
+
     private func activeWorkspaceMatchesLayout(tolerance: CGFloat) -> Bool {
         let windows = workspaces[active]
         let screen = WindowManager.screenFrame(for: self.screen)
-        let frames = Tiler.calculateFrames(count: windows.count, screen: screen, layout: layouts[active])
+        let frames = Tiler.calculateFrames(
+            count: windows.count,
+            screen: screen,
+            layout: layouts[active],
+            masterRatio: masterRatios[active],
+            stackRatios: stackRatios[active]
+        )
         guard frames.count == windows.count else { return false }
 
         for i in windows.indices {
@@ -293,11 +334,15 @@ package final class Monitor {
             workspaces.append(contentsOf: Array(repeating: [], count: count - old))
             layouts.append(contentsOf: Array(repeating: .tile, count: count - old))
             focusedIndices.append(contentsOf: Array(repeating: 0, count: count - old))
+            masterRatios.append(contentsOf: Array(repeating: Config.shared.masterRatio, count: count - old))
+            stackRatios.append(contentsOf: Array(repeating: [], count: count - old))
         } else {
             let overflow = workspaces[count..<old].joined()
             workspaces.removeSubrange(count...)
             layouts.removeSubrange(count...)
             focusedIndices.removeSubrange(count...)
+            masterRatios.removeSubrange(count...)
+            stackRatios.removeSubrange(count...)
             if active >= count {
                 active = count - 1
             }
@@ -326,6 +371,8 @@ package final class Monitor {
         workspaces = source.workspaces
         layouts = source.layouts
         focusedIndices = source.focusedIndices
+        masterRatios = source.masterRatios
+        stackRatios = source.stackRatios
         active = source.active
         previousActive = source.previousActive
     }
@@ -338,6 +385,8 @@ package final class Monitor {
         workspaces = Array(repeating: [], count: count)
         layouts = Array(repeating: .tile, count: count)
         focusedIndices = Array(repeating: 0, count: count)
+        masterRatios = Array(repeating: Config.shared.masterRatio, count: count)
+        stackRatios = Array(repeating: [], count: count)
         active = 0
         previousActive = 0
     }
