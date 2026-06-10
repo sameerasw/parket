@@ -95,7 +95,27 @@ struct TrackedWindow: Equatable {
     }
 
     func hideOffscreen(_ screen: CGRect) {
-        setPosition(CGPoint(x: screen.origin.x + 1 - screen.width, y: screen.maxY - 1))
+        let position: CGPoint
+        switch Config.shared.inactiveWindowPosition {
+        case .left:
+            position = CGPoint(x: screen.origin.x - 30000, y: screen.midY)
+        case .right:
+            position = CGPoint(x: screen.maxX + 30000, y: screen.midY)
+        case .top:
+            position = CGPoint(x: screen.midX, y: screen.origin.y - 30000)
+        case .bottom:
+            position = CGPoint(x: screen.midX, y: screen.maxY + 30000)
+        case .topLeft:
+            position = CGPoint(x: screen.origin.x - 30000, y: screen.origin.y - 30000)
+        case .topRight:
+            position = CGPoint(x: screen.maxX + 30000, y: screen.origin.y - 30000)
+        case .bottomLeft:
+            position = CGPoint(x: screen.origin.x - 30000, y: screen.maxY + 30000)
+        case .bottomRight:
+            position = CGPoint(x: screen.maxX + 30000, y: screen.maxY + 30000)
+        }
+        
+        setPosition(position)
     }
 
     func setFrame(_ rect: CGRect) {

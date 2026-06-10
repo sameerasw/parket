@@ -1,5 +1,16 @@
 import Cocoa
 
+package enum InactiveWindowPosition: String {
+    case left
+    case right
+    case top
+    case bottom
+    case topLeft = "top-left"
+    case topRight = "top-right"
+    case bottomLeft = "bottom-left"
+    case bottomRight = "bottom-right"
+}
+
 package struct Binding {
     let key: UInt16
     let shift: Bool
@@ -118,6 +129,7 @@ package struct Config {
     package var padding: CGFloat = 0
     package var gap: CGFloat = 0
     package var hideInactiveApps: Bool = false
+    package var inactiveWindowPosition: InactiveWindowPosition = .left
     package var modifier: CGEventFlags = .maskAlternate
     package var customBindings: [Binding] = [
         Binding(key: Key.return, shift: true, command: "open -n -a Terminal"),
@@ -176,6 +188,11 @@ package struct Config {
 
         if let hideInactive = toml["hide_inactive_apps"] as? Bool {
             config.hideInactiveApps = hideInactive
+        }
+
+        if let posStr = toml["inactive_window_position"] as? String,
+           let pos = InactiveWindowPosition(rawValue: posStr) {
+            config.inactiveWindowPosition = pos
         }
 
         if let mod = toml["modifier"] as? String {

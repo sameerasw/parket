@@ -16,6 +16,9 @@
 # hide applications that are not on the active workspace
 # hide_inactive_apps = false
 
+# screen side or corner to keep inactive app windows: "left", "right", "top", "bottom", "top-left", "top-right", "bottom-left", "bottom-right"
+# inactive_window_position = "left"
+
 # global modifier key: "option", "control", "command"
 # modifier = "option"
 
