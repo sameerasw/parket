@@ -49,29 +49,7 @@ package final class StatusBar: NSObject {
 
         let monitor = ws.focusedMonitor
 
-        if ws.monitors.count > 1 {
-            let monitorNumber = ws.focusedMonitorIndex + 1
-            views.append(LayoutIndicatorView(text: "\(monitorNumber):", fontSize: fontSize))
-        }
-
-        let layout = monitor.layouts[monitor.active]
-        if layout == .monocle {
-            let windowCount = monitor.workspaces[monitor.active].count
-            views.append(LayoutIndicatorView(text: "M\(windowCount)", fontSize: fontSize))
-        }
-
-        for i in 0..<Config.shared.workspaceCount {
-            let isActive = i == monitor.active
-            let hasWindows = !monitor.workspaces[i].isEmpty
-
-            guard isActive || hasWindows else { continue }
-
-            views.append(BadgeView(number: i + 1, fontSize: fontSize, active: isActive))
-        }
-
-        if views.isEmpty {
-            views.append(BadgeView(number: 1, fontSize: fontSize, active: true))
-        }
+        views.append(BadgeView(number: monitor.active + 1, fontSize: fontSize, active: false))
 
         applyViews(views)
     }
