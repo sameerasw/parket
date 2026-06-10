@@ -37,7 +37,9 @@ package final class WorkspaceManager {
     }
 
     func switchTo(_ index: Int) {
-        focusedMonitor.switchTo(index)
+        for monitor in monitors {
+            monitor.switchTo(index)
+        }
         StatusBar.shared.update()
     }
 
@@ -225,7 +227,13 @@ package final class WorkspaceManager {
         }
 
         focusedMonitorIndex = location.monitorIndex
-        monitor.revealWorkspace(location.workspaceIndex, focusing: window)
+        for m in monitors {
+            if m === monitor {
+                m.revealWorkspace(location.workspaceIndex, focusing: window)
+            } else {
+                m.switchTo(location.workspaceIndex)
+            }
+        }
         StatusBar.shared.update()
     }
 
@@ -274,6 +282,14 @@ package final class WorkspaceManager {
            newPrimary.workspaces.allSatisfy({ $0.isEmpty }) {
             newPrimary.copyState(from: oldPrimary)
             oldPrimary.resetState()
+        }
+        
+        let currentActive = monitors.first(where: { old[$0.displayID] != nil })?.active ?? 0
+        for monitor in monitors {
+            if old[monitor.displayID] == nil {
+                monitor.active = currentActive
+                monitor.previousActive = currentActive
+            }
         }
 
         if newPrimaryID != oldPrimaryID {
