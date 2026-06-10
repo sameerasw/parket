@@ -55,6 +55,34 @@ package final class WorkspaceManager {
         switchTo(target)
     }
 
+    func switchToPrev() {
+        let current = focusedMonitor.active
+        let count = Config.shared.workspaceCount
+        let target = (current - 1 + count) % count
+        switchTo(target)
+    }
+
+    func switchToNext() {
+        let current = focusedMonitor.active
+        let count = Config.shared.workspaceCount
+        let target = (current + 1) % count
+        switchTo(target)
+    }
+
+    func moveActiveWindowToPrev() {
+        let current = focusedMonitor.active
+        let count = Config.shared.workspaceCount
+        let target = (current - 1 + count) % count
+        moveActiveWindowTo(target)
+    }
+
+    func moveActiveWindowToNext() {
+        let current = focusedMonitor.active
+        let count = Config.shared.workspaceCount
+        let target = (current + 1) % count
+        moveActiveWindowTo(target)
+    }
+
     func moveActiveWindowTo(_ index: Int) {
         guard let focused = WindowManager.focusedWindow() else { return }
         focusedMonitor.moveActiveWindowTo(index)

@@ -104,6 +104,10 @@ package struct BuiltinBindings {
     var moveMonitorPrev: (key: UInt16, shift: Bool) = (Key.comma, true)
     var moveMonitorNext: (key: UInt16, shift: Bool) = (Key.period, true)
     var lastWorkspace: (key: UInt16, shift: Bool) = (Key.tab, false)
+    var prevWorkspace: (key: UInt16, shift: Bool) = (Key.q, false)
+    var nextWorkspace: (key: UInt16, shift: Bool) = (Key.e, false)
+    var moveWorkspacePrev: (key: UInt16, shift: Bool) = (Key.q, true)
+    var moveWorkspaceNext: (key: UInt16, shift: Bool) = (Key.e, true)
 }
 
 package struct Config {
@@ -188,6 +192,10 @@ package struct Config {
             applyBinding(bindings, "move_monitor_prev", to: &config.bindings.moveMonitorPrev)
             applyBinding(bindings, "move_monitor_next", to: &config.bindings.moveMonitorNext)
             applyBinding(bindings, "last_workspace", to: &config.bindings.lastWorkspace)
+            applyBinding(bindings, "prev_workspace", to: &config.bindings.prevWorkspace)
+            applyBinding(bindings, "next_workspace", to: &config.bindings.nextWorkspace)
+            applyBinding(bindings, "move_workspace_prev", to: &config.bindings.moveWorkspacePrev)
+            applyBinding(bindings, "move_workspace_next", to: &config.bindings.moveWorkspaceNext)
         }
 
         if let customs = toml["custom"] as? [[String: Any]] {

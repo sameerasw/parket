@@ -102,6 +102,22 @@ package final class Hotkeys {
             DispatchQueue.main.async { WorkspaceManager.shared.switchToLast() }
             return nil
         }
+        if keyCode == b.prevWorkspace.key && hasShift == b.prevWorkspace.shift {
+            DispatchQueue.main.async { WorkspaceManager.shared.switchToPrev() }
+            return nil
+        }
+        if keyCode == b.nextWorkspace.key && hasShift == b.nextWorkspace.shift {
+            DispatchQueue.main.async { WorkspaceManager.shared.switchToNext() }
+            return nil
+        }
+        if keyCode == b.moveWorkspacePrev.key && hasShift == b.moveWorkspacePrev.shift {
+            DispatchQueue.main.async { WorkspaceManager.shared.moveActiveWindowToPrev() }
+            return nil
+        }
+        if keyCode == b.moveWorkspaceNext.key && hasShift == b.moveWorkspaceNext.shift {
+            DispatchQueue.main.async { WorkspaceManager.shared.moveActiveWindowToNext() }
+            return nil
+        }
         if keyCode == b.focusNext.key && hasShift == b.focusNext.shift {
             DispatchQueue.main.async { WorkspaceManager.shared.focusNext() }
             return nil

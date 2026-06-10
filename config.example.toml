@@ -31,6 +31,10 @@
 # move_monitor_prev = "shift+comma"
 # move_monitor_next = "shift+period"
 # last_workspace = "tab"
+# prev_workspace = "q"
+# next_workspace = "e"
+# move_workspace_prev = "shift+q"
+# move_workspace_next = "shift+e"
 
 # custom key bindings that run shell commands
 # [[custom]]
