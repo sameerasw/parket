@@ -5,7 +5,13 @@
 # workspace_count = 9
 
 # master window width ratio (0.0-1.0)
-# master_ratio = 0.55
+# master_ratio = 0.50
+
+# window margin (padding) all around the screen
+# padding = 0
+
+# gap between windows
+# gap = 0
 
 # global modifier key: "option", "control", "command"
 # modifier = "option"

@@ -281,19 +281,32 @@ package final class Monitor {
         let screen = WindowManager.screenFrame(for: self.screen)
         guard screen.width > 0, screen.height > 0 else { return }
 
+        let padding = Config.shared.padding
+        let gap = Config.shared.gap
+
+        let insetScreenWidth = max(screen.width - 2 * padding, 0)
+        let insetScreenHeight = max(screen.height - 2 * padding, 0)
+
         if let masterFrame = windows[0].getFrame() {
             let actualMasterWidth = masterFrame.width
-            let proposedMasterRatio = actualMasterWidth / screen.width
-            let clampedMasterRatio = min(max(proposedMasterRatio, 0.1), 0.9)
-            masterRatios[active] = clampedMasterRatio
+            let availableWidth = max(insetScreenWidth - gap, 0)
+            if availableWidth > 0 {
+                let proposedMasterRatio = actualMasterWidth / availableWidth
+                let clampedMasterRatio = min(max(proposedMasterRatio, 0.1), 0.9)
+                masterRatios[active] = clampedMasterRatio
+            }
         }
+
+        let stackCount = windows.count - 1
+        let totalVerticalGaps = CGFloat(stackCount - 1) * gap
+        let availableHeight = max(insetScreenHeight - totalVerticalGaps, 0)
 
         var newStackRatios: [CGFloat] = []
         for i in 1..<windows.count {
-            if let frame = windows[i].getFrame() {
-                newStackRatios.append(frame.height / screen.height)
+            if let frame = windows[i].getFrame(), availableHeight > 0 {
+                newStackRatios.append(frame.height / availableHeight)
             } else {
-                newStackRatios.append(1.0 / CGFloat(windows.count - 1))
+                newStackRatios.append(1.0 / CGFloat(stackCount))
             }
         }
         stackRatios[active] = newStackRatios

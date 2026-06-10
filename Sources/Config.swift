@@ -111,6 +111,8 @@ package struct Config {
 
     package var workspaceCount: Int = 9
     package var masterRatio: CGFloat = 0.50
+    package var padding: CGFloat = 0
+    package var gap: CGFloat = 0
     package var modifier: CGEventFlags = .maskAlternate
     package var customBindings: [Binding] = [
         Binding(key: Key.return, shift: true, command: "open -n -a Terminal"),
@@ -153,6 +155,18 @@ package struct Config {
 
         if let ratio = toml["master_ratio"] as? Double {
             config.masterRatio = CGFloat(ratio)
+        }
+
+        if let paddingVal = toml["padding"] as? Double {
+            config.padding = CGFloat(paddingVal)
+        } else if let paddingVal = toml["padding"] as? Int {
+            config.padding = CGFloat(paddingVal)
+        }
+
+        if let gapVal = toml["gap"] as? Double {
+            config.gap = CGFloat(gapVal)
+        } else if let gapVal = toml["gap"] as? Int {
+            config.gap = CGFloat(gapVal)
         }
 
         if let mod = toml["modifier"] as? String {
