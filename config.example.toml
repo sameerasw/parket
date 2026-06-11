@@ -43,6 +43,20 @@
 # always center floating windows on workspace switch (if disabled, they are centered at start and when toggled but otherwise remain in place)
 # always_center_floating = false
 
+# priority when opening and placing windows: "none", "last" (uses last session's workspaces), "config" (uses rules in config file)
+# workspace_priority = "last"
+
+# enable option+shift+i shortcut to copy the package name (bundle ID) of the active window
+# enable_copy_package_name = false
+
+# list of apps (bundle IDs) that float by default
+# floating_apps = ["com.apple.Calculator"]
+
+# map applications (bundle IDs) to static workspace numbers (1-based indices)
+# [workspace_rules]
+# "com.apple.Terminal" = 1
+# "com.apple.Safari" = 2
+
 # HUD overlay options
 # hud_enabled = true
 # hud_position = "top" # "top" or "bottom"

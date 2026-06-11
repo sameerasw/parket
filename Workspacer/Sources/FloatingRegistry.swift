@@ -32,6 +32,11 @@ final class FloatingRegistry {
     }
 
     func isFloating(_ window: TrackedWindow) -> Bool {
+        if let app = NSRunningApplication(processIdentifier: window.pid),
+           let bundleId = app.bundleIdentifier,
+           Config.shared.floatingApps.contains(bundleId) {
+            return true
+        }
         if floatingKeys.contains(windowKey(window)) {
             return true
         }

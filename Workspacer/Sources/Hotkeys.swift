@@ -40,6 +40,11 @@ package final class Hotkeys {
         let flags = event.flags
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
 
+        if keyCode == Key.r && flags.contains(.maskAlternate) && flags.contains(.maskControl) && flags.contains(.maskShift) {
+            DispatchQueue.main.async { WorkspaceManager.shared.applyDefaultPlacement() }
+            return nil
+        }
+
         let config = Config.shared
         if config.modifier == .maskCommand && keyCode == Key.tab && flags.contains(.maskCommand) {
             return Unmanaged.passRetained(event)
@@ -144,6 +149,19 @@ package final class Hotkeys {
         }
         if keyCode == b.toggleAlwaysCenterFloating.key && hasShift == b.toggleAlwaysCenterFloating.shift {
             DispatchQueue.main.async { WorkspaceManager.shared.toggleAlwaysCenterFloating() }
+            return nil
+        }
+        if config.enableCopyPackageName && keyCode == Key.i && hasShift {
+            DispatchQueue.main.async {
+                if let focused = WindowManager.focusedWindow(),
+                   let app = NSRunningApplication(processIdentifier: focused.pid),
+                   let bundleId = app.bundleIdentifier {
+                    let pasteboard = NSPasteboard.general
+                    pasteboard.clearContents()
+                    pasteboard.setString(bundleId, forType: .string)
+                    HUDManager.shared.show(text: "Copied Package Name", systemImage: "doc.on.doc.fill", type: .other)
+                }
+            }
             return nil
         }
         if keyCode == b.reloadConfig.key && hasShift == b.reloadConfig.shift {

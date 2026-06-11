@@ -146,14 +146,34 @@ package final class WorkspaceManager {
             }
         }
         let result: WindowUpdate
-        if let bundleId = bundleIdentifier(for: window) {
-            if let savedWorkspace = AppStateStore.shared.getWorkspace(for: bundleId) {
-                result = focusedMonitor.addWindow(window, to: savedWorkspace)
+        let priority = Config.shared.workspacePriority
+        if let bundleId = bundleIdentifier(for: window), priority != .none {
+            var targetWorkspace: Int?
+
+            if priority == .config {
+                if let ruleWorkspace = Config.shared.workspaceRules[bundleId] {
+                    targetWorkspace = max(0, min(ruleWorkspace - 1, Config.shared.workspaceCount - 1))
+                } else if let savedWorkspace = AppStateStore.shared.getWorkspace(for: bundleId) {
+                    targetWorkspace = savedWorkspace
+                }
+            } else if priority == .last {
+                if let savedWorkspace = AppStateStore.shared.getWorkspace(for: bundleId) {
+                    targetWorkspace = savedWorkspace
+                } else if let ruleWorkspace = Config.shared.workspaceRules[bundleId] {
+                    targetWorkspace = max(0, min(ruleWorkspace - 1, Config.shared.workspaceCount - 1))
+                }
+            }
+
+            if let target = targetWorkspace {
+                result = focusedMonitor.addWindow(window, to: target)
             } else {
                 AppStateStore.shared.saveWorkspace(focusedMonitor.active, for: bundleId)
                 result = focusedMonitor.addWindow(window)
             }
         } else {
+            if let bundleId = bundleIdentifier(for: window) {
+                AppStateStore.shared.saveWorkspace(focusedMonitor.active, for: bundleId)
+            }
             result = focusedMonitor.addWindow(window)
         }
         if result == .inserted {
@@ -668,6 +688,40 @@ package final class WorkspaceManager {
                 }
             }
         }
+    }
+
+    func applyDefaultPlacement() {
+        for monitor in monitors {
+            for wsIndex in 0..<monitor.workspaces.count {
+                let windows = monitor.workspaces[wsIndex]
+                for window in windows {
+                    if let bundleId = bundleIdentifier(for: window),
+                       let ruleWorkspace = Config.shared.workspaceRules[bundleId] {
+                        let targetWorkspace = max(0, min(ruleWorkspace - 1, Config.shared.workspaceCount - 1))
+                        if targetWorkspace != wsIndex {
+                            monitor.moveWindow(window, from: wsIndex, to: targetWorkspace)
+                        }
+                    }
+                }
+            }
+        }
+
+        for monitor in monitors {
+            let activeIdx = monitor.active
+            let screenRect = WindowManager.screenRect(for: monitor.screen)
+            for (idx, ws) in monitor.workspaces.enumerated() {
+                if idx != activeIdx {
+                    for win in ws {
+                        win.hideOffscreen(screenRect)
+                    }
+                }
+            }
+            monitor.retile()
+        }
+
+        syncApplicationVisibility()
+        StatusBar.shared.update()
+        HUDManager.shared.show(text: "Applied Workspace Rules", systemImage: "arrow.right.to.line.alt", type: .other)
     }
 
     private func bundleIdentifier(for window: TrackedWindow) -> String? {

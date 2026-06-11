@@ -542,6 +542,15 @@ package final class Monitor {
         }
     }
 
+    func moveWindow(_ window: TrackedWindow, from sourceIndex: Int, to targetIndex: Int) {
+        guard sourceIndex >= 0, sourceIndex < workspaces.count else { return }
+        guard targetIndex >= 0, targetIndex < workspaces.count else { return }
+        guard let i = workspaces[sourceIndex].firstIndex(of: window) else { return }
+        let moved = window.keepingMembers(from: workspaces[sourceIndex][i])
+        workspaces[sourceIndex].remove(at: i)
+        workspaces[targetIndex].insert(moved, at: 0)
+    }
+
     private func centerFloatingWindow(_ window: TrackedWindow, on screen: NSScreen) {
         let screenFrame = WindowManager.screenFrame(for: screen)
         var size = CGSize(width: screenFrame.width * 0.7, height: screenFrame.height * 0.7)

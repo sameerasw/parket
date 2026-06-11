@@ -1,5 +1,11 @@
 import Cocoa
 
+package enum WorkspacePriority: String {
+    case none
+    case last
+    case config
+}
+
 package enum InactiveWindowPosition: String {
     case left
     case right
@@ -159,6 +165,11 @@ package struct Config {
     package var bindings = BuiltinBindings()
 
     package var alwaysCenterFloating: Bool = false
+    package var workspacePriority: WorkspacePriority = .last
+
+    package var enableCopyPackageName: Bool = false
+    package var floatingApps: Set<String> = []
+    package var workspaceRules: [String: Int] = [:]
 
     package var trackpadSwipeEnabled: Bool = false
     package var trackpadSwipeFingers: Int = 3
@@ -330,6 +341,30 @@ package struct Config {
 
         if let alwaysCenter = toml["always_center_floating"] as? Bool {
             config.alwaysCenterFloating = alwaysCenter
+        }
+
+        if let priorityStr = toml["workspace_priority"] as? String {
+            if let p = WorkspacePriority(rawValue: priorityStr.lowercased()) {
+                config.workspacePriority = p
+            }
+        }
+
+        if let enableCopy = toml["enable_copy_package_name"] as? Bool {
+            config.enableCopyPackageName = enableCopy
+        }
+
+        if let floatApps = toml["floating_apps"] as? [Any] {
+            config.floatingApps = Set(floatApps.compactMap { $0 as? String })
+        }
+
+        if let rulesDict = toml["workspace_rules"] as? [String: Any] {
+            var rules: [String: Int] = [:]
+            for (key, val) in rulesDict {
+                if let index = val as? Int {
+                    rules[key] = index
+                }
+            }
+            config.workspaceRules = rules
         }
 
         // Parse trackpad configs (supporting both top-level and [trackpad] table)
