@@ -142,6 +142,10 @@ package final class Hotkeys {
             DispatchQueue.main.async { WorkspaceManager.shared.toggleActiveWindowFloating() }
             return nil
         }
+        if keyCode == b.reloadConfig.key && hasShift == b.reloadConfig.shift {
+            DispatchQueue.main.async { WorkspaceManager.shared.reloadConfig() }
+            return nil
+        }
 
         return Unmanaged.passRetained(event)
     }
