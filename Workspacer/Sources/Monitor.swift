@@ -244,6 +244,25 @@ package final class Monitor {
     }
 
     func adjustActiveWindowSize(direction: CGFloat) {
+        if let focused = WindowManager.focusedWindow(), focused.isFloating {
+            let screenFrame = WindowManager.screenFrame(for: self.screen)
+            let dw = screenFrame.width * direction
+            let dh = screenFrame.height * direction
+            
+            guard let frame = focused.getFrame() else { return }
+            let newWidth = max(frame.width + dw, 100)
+            let newHeight = max(frame.height + dh, 100)
+            
+            let cx = frame.origin.x + frame.width / 2
+            let cy = frame.origin.y + frame.height / 2
+            let newOrigin = CGPoint(x: cx - newWidth / 2, y: cy - newHeight / 2)
+            
+            let newFrame = CGRect(origin: newOrigin, size: CGSize(width: newWidth, height: newHeight))
+            focused.setFrame(newFrame)
+            focused.floatingFrame = newFrame
+            return
+        }
+
         guard layouts[active] == .tile else { return }
         let windows = workspaces[active]
         guard windows.count > 1 else { return }
