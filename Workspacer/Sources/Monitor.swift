@@ -136,7 +136,7 @@ package final class Monitor {
         }
         guard existing == .missing else { return existing }
         workspaces[active].insert(window, at: 0)
-        if window.isFloating {
+        if window.isFloating && Config.shared.alwaysCenterFloating {
             centerFloatingWindow(window, on: self.screen)
         }
         scheduleRetile()
@@ -154,7 +154,7 @@ package final class Monitor {
             return addWindow(window)
         }
         workspaces[workspaceIndex].insert(window, at: 0)
-        if window.isFloating {
+        if window.isFloating && Config.shared.alwaysCenterFloating {
             centerFloatingWindow(window, on: self.screen)
         }
         if workspaceIndex == active {
@@ -340,6 +340,13 @@ package final class Monitor {
             geometryRetileWork = nil
             guard active == scheduledActive else { return }
             guard ProcessInfo.processInfo.systemUptime >= ignoreGeometryUntil else { return }
+            // Snapshot current live frames for floating windows before any layout check,
+            // so user-driven moves/resizes are always persisted and never reverted.
+            for win in workspaces[active] where win.isFloating {
+                if let liveFrame = win.getFrame(), liveFrame.width > 1, liveFrame.height > 1 {
+                    win.floatingFrame = liveFrame
+                }
+            }
             guard !activeWorkspaceMatchesLayout(tolerance: Self.frameTolerance) else { return }
             if layouts[active] == .tile && NSEvent.pressedMouseButtons != 0 {
                 updateRatiosFromActualFrames()
