@@ -540,4 +540,116 @@ package struct Config {
         }
         binding = (code, shift)
     }
+
+    package func save() {
+        let path = NSString("~/.config/workspacer/config.toml").expandingTildeInPath
+        var lines = [String]()
+        
+        lines.append("workspace_count = \(workspaceCount)")
+        lines.append("workspace_names = [\(workspaceNames.map { "\"\($0)\"" }.joined(separator: ", "))]")
+        lines.append("master_ratio = \(String(format: "%.2f", masterRatio))")
+        lines.append("padding = \(Int(padding))")
+        lines.append("gap = \(Int(gap))")
+        lines.append("hide_inactive_apps = \(hideInactiveApps)")
+        lines.append("resize_on_hide = \(resizeOnHide)")
+        lines.append("no_padding_for_single_window = \(noPaddingForSingleWindow)")
+        lines.append("workspace_loop = \(workspaceLoopEnabled)")
+        lines.append("inactive_window_position = \"\(inactiveWindowPosition.rawValue)\"")
+        lines.append("always_center_floating = \(alwaysCenterFloating)")
+        lines.append("workspace_priority = \"\(workspacePriority.rawValue)\"")
+        lines.append("enable_copy_package_name = \(enableCopyPackageName)")
+        lines.append("")
+        lines.append("enable_corners = \(enableCorners)")
+        lines.append("corner_radius = \(String(format: "%.1f", cornerRadius))")
+        lines.append("")
+        lines.append("enable_dynamic_menubar = \(enableDynamicMenubar)")
+        lines.append("")
+        lines.append("hud_enabled = \(hudEnabled)")
+        lines.append("hud_position = \"\(hudPosition)\"")
+        lines.append("hud_y_offset = \(String(format: "%.1f", hudYOffset))")
+        lines.append("hud_duration = \(String(format: "%.1f", hudDuration))")
+        lines.append("hud_on_workspace_switch = \(hudOnWorkspaceSwitch)")
+        lines.append("hud_on_layout_switch = \(hudOnLayoutSwitch)")
+        lines.append("hud_on_config_reload = \(hudOnConfigReload)")
+        lines.append("")
+        lines.append("floating_apps = [\(floatingApps.sorted().map { "\"\($0)\"" }.joined(separator: ", "))]")
+        lines.append("")
+        lines.append("[workspace_rules]")
+        for (bundleId, wsIndex) in workspaceRules.sorted(by: { $0.key < $1.key }) {
+            lines.append("\"\(bundleId)\" = \(wsIndex)")
+        }
+        lines.append("")
+        lines.append("[bindings]")
+        lines.append("focus_next = \"\(keyString(bindings.focusNext))\"")
+        lines.append("focus_prev = \"\(keyString(bindings.focusPrev))\"")
+        lines.append("swap_master = \"\(keyString(bindings.swapMaster))\"")
+        lines.append("toggle_layout = \"\(keyString(bindings.toggleLayout))\"")
+        lines.append("focus_monitor_prev = \"\(keyString(bindings.focusMonitorPrev))\"")
+        lines.append("focus_monitor_next = \"\(keyString(bindings.focusMonitorNext))\"")
+        lines.append("move_monitor_prev = \"\(keyString(bindings.moveMonitorPrev))\"")
+        lines.append("move_monitor_next = \"\(keyString(bindings.moveMonitorNext))\"")
+        lines.append("last_workspace = \"\(keyString(bindings.lastWorkspace))\"")
+        lines.append("prev_workspace = \"\(keyString(bindings.prevWorkspace))\"")
+        lines.append("next_workspace = \"\(keyString(bindings.nextWorkspace))\"")
+        lines.append("move_workspace_prev = \"\(keyString(bindings.moveWorkspacePrev))\"")
+        lines.append("move_workspace_next = \"\(keyString(bindings.moveWorkspaceNext))\"")
+        lines.append("refresh = \"\(keyString(bindings.refresh))\"")
+        lines.append("toggle_float = \"\(keyString(bindings.toggleFloat))\"")
+        lines.append("reload_config = \"\(keyString(bindings.reloadConfig))\"")
+        lines.append("toggle_menubar = \"\(keyString(bindings.toggleMenubar))\"")
+        lines.append("toggle_dynamic_menubar = \"\(keyString(bindings.toggleDynamicMenubar))\"")
+        lines.append("shrink_window = \"\(keyString(bindings.shrinkWindow))\"")
+        lines.append("expand_window = \"\(keyString(bindings.expandWindow))\"")
+        lines.append("toggle_always_center_floating = \"\(keyString(bindings.toggleAlwaysCenterFloating))\"")
+        lines.append("")
+        
+        lines.append("[trackpad]")
+        lines.append("enable = \(trackpadSwipeEnabled)")
+        lines.append("fingers = \(trackpadSwipeFingers)")
+        lines.append("haptic_type = \"\(trackpadSwipeHaptic)\"")
+        lines.append("sensitivity = \(trackpadSwipeSensitivity)")
+        lines.append("allow_multiple = \(trackpadSwipeMultiple)")
+        lines.append("rumble = \(trackpadSwipeRumble)")
+        lines.append("")
+        
+        lines.append("[mouse_gesture]")
+        lines.append("enable = \(mouseGestureEnabled)")
+        lines.append("button = \(mouseGestureButton)")
+        lines.append("sensitivity = \(mouseGestureSensitivity)")
+        lines.append("allow_multiple = \(mouseGestureAllowMultiple)")
+        lines.append("")
+        
+        lines.append("[mouse_bindings]")
+        lines.append("threshold = \(mouseClickThreshold)")
+        for (btn, action) in mouseBindings.sorted(by: { $0.key < $1.key }) {
+            lines.append("\(btn) = \"\(action)\"")
+        }
+        lines.append("")
+        
+        for binding in customBindings {
+            lines.append("[[custom]]")
+            lines.append("key = \"\(customKeyString(key: binding.key, shift: binding.shift))\"")
+            lines.append("command = \"\(binding.command)\"")
+            lines.append("")
+        }
+        
+        let content = lines.joined(separator: "\n")
+        do {
+            try content.write(toFile: path, atomically: true, encoding: .utf8)
+        } catch {
+            fputs("workspacer: failed to save config: \(error)\n", stderr)
+        }
+    }
+
+    private func keyString(_ binding: (key: UInt16, shift: Bool)) -> String {
+        return customKeyString(key: binding.key, shift: binding.shift)
+    }
+
+    private func customKeyString(key: UInt16, shift: Bool) -> String {
+        let name = Key.byName.first(where: { $0.value == key })?.key ?? ""
+        if shift {
+            return "shift+\(name)"
+        }
+        return name
+    }
 }

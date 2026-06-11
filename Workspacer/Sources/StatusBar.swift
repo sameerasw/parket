@@ -11,6 +11,10 @@ package final class StatusBar: NSObject {
         super.init()
 
         let menu = NSMenu()
+        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ",")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+        menu.addItem(NSMenuItem.separator())
         let reloadItem = NSMenuItem(title: "Reload Config", action: #selector(reloadConfig), keyEquivalent: "r")
         reloadItem.target = self
         menu.addItem(reloadItem)
@@ -21,6 +25,10 @@ package final class StatusBar: NSObject {
         statusItem.menu = menu
 
         update()
+    }
+
+    @objc private func openSettings() {
+        SettingsWindowController.shared.show()
     }
 
     @objc private func reloadConfig() {
