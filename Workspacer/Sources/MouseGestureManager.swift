@@ -8,15 +8,17 @@ package final class MouseGestureManager {
     private var hasTriggered = false
     private var lastTriggeredDirection: Int = 0
     private var hasShownHUD = false
+    private var sessionButton: Int = 0
 
     private init() {}
 
-    package func startDrag(at point: CGPoint) {
+    package func startDrag(at point: CGPoint, button: Int) {
         isDragging = true
         startingMouseX = point.x
         hasTriggered = false
         lastTriggeredDirection = 0
         hasShownHUD = false
+        sessionButton = button
     }
 
     package func dragged(to point: CGPoint) {
@@ -93,11 +95,9 @@ package final class MouseGestureManager {
         }
     }
 
-    package func endDrag() {
+    package func endDrag(button: Int) {
         guard isDragging else { return }
         isDragging = false
-        hasTriggered = false
-        lastTriggeredDirection = 0
 
         let config = Config.shared
         if hasShownHUD {
@@ -115,7 +115,19 @@ package final class MouseGestureManager {
                 HUDManager.shared.releasePersistentHUD()
             }
         }
+
+        if !hasTriggered && button == sessionButton {
+            if let action = config.mouseBindings[button] {
+                DispatchQueue.main.async {
+                    WorkspaceManager.shared.executeAction(action)
+                }
+            }
+        }
+
+        hasTriggered = false
+        lastTriggeredDirection = 0
         hasShownHUD = false
+        sessionButton = 0
     }
 
     private func playHaptic(_ typeStr: String) {

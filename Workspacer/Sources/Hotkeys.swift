@@ -42,22 +42,24 @@ package final class Hotkeys {
 
         let config = Config.shared
         let targetButtonIndex = config.mouseGestureButton - 1
+        let buttonNumber = Int(event.getIntegerValueField(.mouseEventButtonNumber))
+        let hasClickBinding = config.mouseBindings.keys.contains(buttonNumber + 1)
+
         if type == .otherMouseDown {
-            let buttonNumber = event.getIntegerValueField(.mouseEventButtonNumber)
-            if config.mouseGestureEnabled && buttonNumber == targetButtonIndex {
-                MouseGestureManager.shared.startDrag(at: event.location)
+            if (config.mouseGestureEnabled && buttonNumber == targetButtonIndex) || hasClickBinding {
+                MouseGestureManager.shared.startDrag(at: event.location, button: buttonNumber + 1)
                 return nil
             }
         } else if type == .otherMouseUp {
-            let buttonNumber = event.getIntegerValueField(.mouseEventButtonNumber)
-            if config.mouseGestureEnabled && buttonNumber == targetButtonIndex {
-                MouseGestureManager.shared.endDrag()
+            if (config.mouseGestureEnabled && buttonNumber == targetButtonIndex) || hasClickBinding {
+                MouseGestureManager.shared.endDrag(button: buttonNumber + 1)
                 return nil
             }
         } else if type == .otherMouseDragged {
-            let buttonNumber = event.getIntegerValueField(.mouseEventButtonNumber)
             if config.mouseGestureEnabled && buttonNumber == targetButtonIndex {
                 MouseGestureManager.shared.dragged(to: event.location)
+                return nil
+            } else if hasClickBinding {
                 return nil
             }
         }

@@ -174,6 +174,10 @@ package struct Config {
     package var mouseGestureEnabled: Bool = false
     package var mouseGestureButton: Int = 5
     package var mouseGestureSensitivity: Double = 1.0
+    package var mouseBindings: [Int: String] = [
+        4: "back",
+        5: "forward"
+    ]
 
     package var trackpadSwipeEnabled: Bool = false
     package var trackpadSwipeFingers: Int = 3
@@ -395,6 +399,16 @@ package struct Config {
             } else if let sensitivity = mouse["sensitivity"] as? Int {
                 config.mouseGestureSensitivity = Double(sensitivity)
             }
+        }
+
+        if let mouseBind = toml["mouse_bindings"] as? [String: Any] {
+            var bindings: [Int: String] = [:]
+            for (key, val) in mouseBind {
+                if let btn = Int(key), let action = val as? String {
+                    bindings[btn] = action
+                }
+            }
+            config.mouseBindings = bindings
         }
 
         // Parse trackpad configs (supporting both top-level and [trackpad] table)

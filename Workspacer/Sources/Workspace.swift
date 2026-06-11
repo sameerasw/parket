@@ -724,6 +724,46 @@ package final class WorkspaceManager {
         HUDManager.shared.show(text: "Applied Workspace Rules", systemImage: "arrow.right.to.line.alt", type: .other)
     }
 
+    func executeAction(_ action: String) {
+        switch action {
+        case "focus_next": focusNext()
+        case "focus_prev": focusPrev()
+        case "swap_master": swapMaster()
+        case "toggle_layout": toggleLayout()
+        case "focus_monitor_prev": focusMonitor(offset: -1)
+        case "focus_monitor_next": focusMonitor(offset: 1)
+        case "move_monitor_prev": moveWindowToMonitor(offset: -1)
+        case "move_monitor_next": moveWindowToMonitor(offset: 1)
+        case "last_workspace": switchToLast()
+        case "prev_workspace": switchToPrev()
+        case "next_workspace": switchToNext()
+        case "move_workspace_prev": moveActiveWindowToPrev()
+        case "move_workspace_next": moveActiveWindowToNext()
+        case "refresh": refresh()
+        case "toggle_float": toggleActiveWindowFloating()
+        case "reload_config": reloadConfig()
+        case "toggle_menubar": toggleMenuBarAutoHide()
+        case "toggle_dynamic_menubar": toggleDynamicMenuBar()
+        case "shrink_window": adjustActiveWindowSize(direction: -0.05)
+        case "expand_window": adjustActiveWindowSize(direction: 0.05)
+        case "toggle_always_center_floating": toggleAlwaysCenterFloating()
+        case "back": simulateKeystroke(key: 33, flags: .maskCommand)
+        case "forward": simulateKeystroke(key: 30, flags: .maskCommand)
+        default: break
+        }
+    }
+
+    private func simulateKeystroke(key: UInt16, flags: CGEventFlags) {
+        let source = CGEventSource(stateID: .combinedSessionState)
+        guard let down = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: true) else { return }
+        down.flags = flags
+        guard let up = CGEvent(keyboardEventSource: source, virtualKey: key, keyDown: false) else { return }
+        up.flags = flags
+        
+        down.post(tap: .cgAnnotatedSessionEventTap)
+        up.post(tap: .cgAnnotatedSessionEventTap)
+    }
+
     private func bundleIdentifier(for window: TrackedWindow) -> String? {
         if let app = NSRunningApplication(processIdentifier: window.pid) {
             return app.bundleIdentifier
