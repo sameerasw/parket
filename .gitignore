@@ -4,3 +4,5 @@ tatami.app/
 *.zip
 .DS_Store
 benchmark-*.csv
+updates/
+*UserInterfaceState.xcuserstate
