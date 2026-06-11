@@ -9,6 +9,7 @@ package final class MouseGestureManager {
     private var lastTriggeredDirection: Int = 0
     private var hasShownHUD = false
     private var sessionButton: Int = 0
+    private var startingTime: TimeInterval = 0.0
 
     private init() {}
 
@@ -19,6 +20,7 @@ package final class MouseGestureManager {
         lastTriggeredDirection = 0
         hasShownHUD = false
         sessionButton = button
+        startingTime = ProcessInfo.processInfo.systemUptime
     }
 
     package func dragged(to point: CGPoint) {
@@ -117,9 +119,12 @@ package final class MouseGestureManager {
         }
 
         if !hasTriggered && button == sessionButton {
-            if let action = config.mouseBindings[button] {
-                DispatchQueue.main.async {
-                    WorkspaceManager.shared.executeAction(action)
+            let elapsed = ProcessInfo.processInfo.systemUptime - startingTime
+            if elapsed <= config.mouseClickThreshold {
+                if let action = config.mouseBindings[button] {
+                    DispatchQueue.main.async {
+                        WorkspaceManager.shared.executeAction(action)
+                    }
                 }
             }
         }

@@ -175,6 +175,7 @@ package struct Config {
     package var mouseGestureButton: Int = 5
     package var mouseGestureSensitivity: Double = 1.0
     package var mouseGestureAllowMultiple: Bool = false
+    package var mouseClickThreshold: Double = 0.4
     package var mouseBindings: [Int: String] = [
         4: "back",
         5: "forward"
@@ -390,6 +391,11 @@ package struct Config {
         if let mouseAllowMultiple = toml["mouse_gesture_allow_multiple"] as? Bool {
             config.mouseGestureAllowMultiple = mouseAllowMultiple
         }
+        if let clickThreshold = toml["mouse_click_threshold"] as? Double {
+            config.mouseClickThreshold = clickThreshold
+        } else if let clickThreshold = toml["mouse_click_threshold"] as? Int {
+            config.mouseClickThreshold = Double(clickThreshold)
+        }
 
         if let mouse = toml["mouse_gesture"] as? [String: Any] {
             if let enabled = mouse["enable"] as? Bool {
@@ -406,9 +412,19 @@ package struct Config {
             if let allowMultiple = mouse["allow_multiple"] as? Bool {
                 config.mouseGestureAllowMultiple = allowMultiple
             }
+            if let clickThreshold = mouse["click_threshold"] as? Double {
+                config.mouseClickThreshold = clickThreshold
+            } else if let clickThreshold = mouse["click_threshold"] as? Int {
+                config.mouseClickThreshold = Double(clickThreshold)
+            }
         }
 
         if let mouseBind = toml["mouse_bindings"] as? [String: Any] {
+            if let threshold = mouseBind["threshold"] as? Double {
+                config.mouseClickThreshold = threshold
+            } else if let threshold = mouseBind["threshold"] as? Int {
+                config.mouseClickThreshold = Double(threshold)
+            }
             var bindings: [Int: String] = [:]
             for (key, val) in mouseBind {
                 if let btn = Int(key), let action = val as? String {

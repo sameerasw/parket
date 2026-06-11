@@ -119,6 +119,6 @@
 
 # map mouse button clicks to built-in commands (defaults: 4 to back, 5 to forward)
 # [mouse_bindings]
+# threshold = 0.4 # maximum duration (in seconds) of a click press to trigger the action (default 0.4)
 # 4 = "back"
 # 5 = "forward"
-    
