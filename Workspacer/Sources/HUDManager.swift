@@ -241,52 +241,36 @@ private struct HUDView: View {
                                 let isTarget = (index == targetIndex)
                                 let progressToTarget = isTarget ? min(1.0, max(0.0, abs(swipeProgress))) : 0.0
                                 
-                                Group {
-                                    if isActive {
-                                        Text(workspaceNames[index])
-                                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                                            .foregroundColor(.white)
-                                            .frame(width: itemWidth - 10, height: 36)
-                                            .background(
+                                Text(workspaceNames[index])
+                                    .font(.system(size: 13, weight: isActive ? .bold : (isTarget ? .semibold : .medium), design: .rounded))
+                                    .foregroundColor(isActive ? .white : .primary.opacity(0.65))
+                                    .frame(width: itemWidth - 10, height: 36)
+                                    .background(
+                                        ZStack {
+                                            if isActive {
                                                 RoundedRectangle(cornerRadius: 16)
                                                     .fill(Color.accentColor)
                                                     .matchedGeometryEffect(id: "activePill", in: namespace)
-                                            )
-                                            .applyGlassViewIfAvailable(cornerRadius: 24)
-                                            .scaleEffect(1.1)
-                                    } else {
-                                        ZStack {
-                                            Text(workspaceNames[index])
-                                                .font(.system(size: 13, weight: .medium, design: .rounded))
-                                                .foregroundColor(.primary.opacity(0.65))
-                                                .opacity(1.0 - Double(progressToTarget))
-                                            
-                                            Text(workspaceNames[index])
-                                                .font(.system(size: 13, weight: .semibold, design: .rounded))
-//                                                .foregroundColor(Color.accentColor.opacity(0.95))
-                                                .opacity(Double(progressToTarget))
-                                        }
-                                        .frame(width: itemWidth - 10, height: 36)
-                                        .background(
-                                            ZStack {
-                                                RoundedRectangle(cornerRadius: 16)
-                                                    .fill(Color.primary.opacity(0.04))
-                                                
-                                                RoundedRectangle(cornerRadius: 16)
-                                                    .fill(Color.accentColor.opacity(0.2 * Double(progressToTarget)))
+                                            } else {
+                                                ZStack {
+                                                    RoundedRectangle(cornerRadius: 16)
+                                                        .fill(Color.primary.opacity(0.04))
+                                                    
+                                                    RoundedRectangle(cornerRadius: 16)
+                                                        .fill(Color.accentColor.opacity(0.2 * Double(progressToTarget)))
+                                                }
                                             }
-                                        )
-
-                                          .applyGlassViewIfAvailable(cornerRadius: 24)
-                                        .scaleEffect(1.0 + 0.03 * progressToTarget)
-                                    }
-                                }
-                                .frame(width: itemWidth) // Keeps fixed item slots
+                                        }
+                                    )
+                                    .applyGlassViewIfAvailable(cornerRadius: 24)
+                                    .scaleEffect(isActive ? 1.1 : (1.0 + 0.03 * progressToTarget))
+                                    .frame(width: itemWidth) // Keeps fixed item slots
                             }
                         }
                         .offset(x: totalOffset)
                         .frame(width: itemWidth * CGFloat(count))
                         .animation(isInteractive ? nil : .spring(response: 0.3, dampingFraction: 0.7), value: totalOffset)
+                        .animation(.spring(response: 0.38, dampingFraction: 0.82), value: highlightedIndex)
                     }
                     .frame(width: 320, height: 50)
                     .mask(
