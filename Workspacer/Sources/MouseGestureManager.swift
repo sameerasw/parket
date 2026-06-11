@@ -75,7 +75,7 @@ package final class MouseGestureManager {
                 (direction > 0 && activeIndex <= 0)
             )
 
-            if !atBoundary && (!hasTriggered || config.trackpadSwipeMultiple || isOppositeDirection) {
+            if !atBoundary && (!hasTriggered || config.mouseGestureAllowMultiple || isOppositeDirection) {
                 playHaptic(config.trackpadSwipeHaptic)
 
                 if direction < 0 {

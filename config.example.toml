@@ -115,8 +115,10 @@
 # enable = false
 # button = 5 # 1-based mouse button index (e.g. 5 = Button 5, 4 = Button 4)
 # sensitivity = 1.0 # higher value = more sensitive (smaller drag distance required)
+# allow_multiple = true # allow multiple workspace switches per continuous drag gesture (default true)
 
 # map mouse button clicks to built-in commands (defaults: 4 to back, 5 to forward)
 # [mouse_bindings]
 # 4 = "back"
 # 5 = "forward"
+    

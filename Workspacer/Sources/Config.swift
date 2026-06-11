@@ -174,6 +174,7 @@ package struct Config {
     package var mouseGestureEnabled: Bool = false
     package var mouseGestureButton: Int = 5
     package var mouseGestureSensitivity: Double = 1.0
+    package var mouseGestureAllowMultiple: Bool = false
     package var mouseBindings: [Int: String] = [
         4: "back",
         5: "forward"
@@ -386,6 +387,9 @@ package struct Config {
         } else if let mouseSensitivity = toml["mouse_gesture_sensitivity"] as? Int {
             config.mouseGestureSensitivity = Double(mouseSensitivity)
         }
+        if let mouseAllowMultiple = toml["mouse_gesture_allow_multiple"] as? Bool {
+            config.mouseGestureAllowMultiple = mouseAllowMultiple
+        }
 
         if let mouse = toml["mouse_gesture"] as? [String: Any] {
             if let enabled = mouse["enable"] as? Bool {
@@ -398,6 +402,9 @@ package struct Config {
                 config.mouseGestureSensitivity = sensitivity
             } else if let sensitivity = mouse["sensitivity"] as? Int {
                 config.mouseGestureSensitivity = Double(sensitivity)
+            }
+            if let allowMultiple = mouse["allow_multiple"] as? Bool {
+                config.mouseGestureAllowMultiple = allowMultiple
             }
         }
 
