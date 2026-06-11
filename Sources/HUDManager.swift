@@ -16,11 +16,10 @@ package final class HUDManager {
 
     private init() {}
 
-    package func show(text: String, systemImage: String, type: HUDActionType) {
+    package func show(text: String, systemImage: String, type: HUDActionType, slideOffset: CGFloat = 0) {
         let config = Config.shared
         guard config.hudEnabled else { return }
 
-        // Check individual controls
         switch type {
         case .workspaceSwitch:
             guard config.hudOnWorkspaceSwitch else { return }
@@ -32,17 +31,15 @@ package final class HUDManager {
             break
         }
 
-        // Cancel previous timer
         hideTimer?.invalidate()
 
         DispatchQueue.main.async { [self] in
-            // Find active screen
             let screen = WorkspaceManager.shared.focusedMonitor.screen
             
             if hudWindow == nil {
-                hudWindow = HUDWindow(screen: screen, text: text, systemImage: systemImage)
+                hudWindow = HUDWindow(screen: screen, text: text, systemImage: systemImage, slideOffset: slideOffset)
             } else {
-                hudWindow?.updateContent(text: text, systemImage: systemImage)
+                hudWindow?.updateContent(text: text, systemImage: systemImage, slideOffset: slideOffset)
                 hudWindow?.updatePosition(screen: screen)
             }
 
@@ -59,16 +56,30 @@ package final class HUDManager {
 }
 
 private final class HUDWindow: NSWindow {
-    private var hostingView: NSHostingView<HUDView>?
+    private var hostingView: NSHostingView<AnyView>?
     private var currentText: String
     private var currentSystemImage: String
+    private var currentSlideOffset: CGFloat
 
-    init(screen: NSScreen, text: String, systemImage: String) {
+    init(screen: NSScreen, text: String, systemImage: String, slideOffset: CGFloat) {
         self.currentText = text
         self.currentSystemImage = systemImage
+        self.currentSlideOffset = slideOffset
+        
+        let config = Config.shared
+        let screenFrame = screen.frame
+        let windowSize = CGSize(width: 800, height: 100)
+        let x = screenFrame.origin.x + (screenFrame.width - windowSize.width) / 2
+        let y: CGFloat
+        if config.hudPosition == "bottom" {
+            y = screenFrame.origin.y + config.hudYOffset - 20
+        } else {
+            y = screenFrame.origin.y + screenFrame.height - windowSize.height - config.hudYOffset + 20
+        }
+        let frame = CGRect(origin: CGPoint(x: x, y: y), size: windowSize)
         
         super.init(
-            contentRect: .zero,
+            contentRect: frame,
             styleMask: [.borderless],
             backing: .buffered,
             defer: false
@@ -77,59 +88,57 @@ private final class HUDWindow: NSWindow {
         self.isReleasedWhenClosed = false
         self.level = .statusBar + 1
         self.backgroundColor = .clear
-        self.hasShadow = true
+        self.hasShadow = false
         self.ignoresMouseEvents = true
         self.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         self.alphaValue = 0
 
         updateContentView()
-        updatePosition(screen: screen)
         orderFrontRegardless()
     }
 
-    func updateContent(text: String, systemImage: String) {
+    func updateContent(text: String, systemImage: String, slideOffset: CGFloat) {
         self.currentText = text
         self.currentSystemImage = systemImage
+        self.currentSlideOffset = slideOffset
         updateContentView()
     }
 
     private func updateContentView() {
-        let hudView = HUDView(text: currentText, systemImage: currentSystemImage)
+        let hudView = HUDView(text: currentText, systemImage: currentSystemImage, slideOffset: currentSlideOffset)
+            .id(UUID())
+        let anyView = AnyView(hudView)
         if hostingView == nil {
-            hostingView = NSHostingView(rootView: hudView)
+            hostingView = NSHostingView(rootView: anyView)
             self.contentView = hostingView
         } else {
-            hostingView?.rootView = hudView
+            hostingView?.rootView = anyView
         }
     }
 
     func updatePosition(screen: NSScreen) {
         let config = Config.shared
         let screenFrame = screen.frame
-        let windowSize = CGSize(width: 300, height: 60)
+        let windowSize = CGSize(width: 800, height: 100)
 
         let x = screenFrame.origin.x + (screenFrame.width - windowSize.width) / 2
         let y: CGFloat
         if config.hudPosition == "bottom" {
-            y = screenFrame.origin.y + config.hudYOffset
+            y = screenFrame.origin.y + config.hudYOffset - 20
         } else {
-            y = screenFrame.origin.y + screenFrame.height - windowSize.height - config.hudYOffset
+            y = screenFrame.origin.y + screenFrame.height - windowSize.height - config.hudYOffset + 20
         }
 
         self.setFrame(CGRect(origin: CGPoint(x: x, y: y), size: windowSize), display: true)
     }
 
     func fadeIn() {
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = 0.2
-            context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-            self.animator().alphaValue = 1.0
-        }
+        self.alphaValue = 1.0
     }
 
     func fadeOut(completion: @escaping () -> Void) {
         NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.25
+            context.duration = 0.15
             context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             self.animator().alphaValue = 0.0
         }, completionHandler: completion)
@@ -139,22 +148,48 @@ private final class HUDWindow: NSWindow {
 private struct HUDView: View {
     let text: String
     let systemImage: String
+    let slideOffset: CGFloat
+    @State private var animOffset: CGFloat = 0
+    @State private var scale: CGFloat = 1.0
+    @State private var opacity: Double = 0
 
     var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: systemImage)
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(.primary)
-            
-            Text(text)
-                .font(.system(size: 15, weight: .medium, design: .rounded))
-                .foregroundStyle(.primary)
-            
-            Spacer()
+        ZStack {
+            HStack(spacing: 14) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.primary)
+                
+                Text(text)
+                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary)
+                
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .frame(width: 300, height: 60)
+            .applyGlassViewIfAvailable(cornerRadius: 24)
+            .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
+            .scaleEffect(scale)
+            .offset(x: animOffset)
+            .opacity(opacity)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .frame(width: 300, height: 60)
-        .applyGlassViewIfAvailable(cornerRadius: 24)
+        .frame(width: 800, height: 100)
+        .onAppear {
+            if slideOffset != 0 {
+                animOffset = slideOffset
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
+                    animOffset = 0
+                    opacity = 1.0
+                }
+            } else {
+                animOffset = 0
+                scale = 1.0
+                withAnimation(.easeOut(duration: 0.12)) {
+                    opacity = 1.0
+                }
+            }
+        }
     }
 }

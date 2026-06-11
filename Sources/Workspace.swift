@@ -46,13 +46,22 @@ package final class WorkspaceManager {
     }
 
     func switchTo(_ index: Int) {
+        let prevIndex = focusedMonitor.active
         for monitor in monitors {
             monitor.switchTo(index)
         }
         syncApplicationVisibility()
         StatusBar.shared.update()
+        
+        let count = Config.shared.workspaceCount
+        var slideOffset: CGFloat = 0
+        if prevIndex != index {
+            let movingRight = (index == (prevIndex + 1) % count) || (index > prevIndex && !(prevIndex == 0 && index == count - 1))
+            slideOffset = movingRight ? 150 : -150
+        }
+        
         let name = Config.shared.workspaceName(for: index)
-        HUDManager.shared.show(text: name, systemImage: "desktopcomputer", type: .workspaceSwitch)
+        HUDManager.shared.show(text: name, systemImage: "desktopcomputer", type: .workspaceSwitch, slideOffset: slideOffset)
     }
 
     func switchToLast() {
