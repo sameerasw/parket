@@ -11,13 +11,13 @@ build:
 install: build
 	rm -rf $(INSTALL_DIR)
 	cp -R $(BUILD_DIR)/$(APP_NAME).app $(INSTALL_DIR)
-	codesign --force --sign "$(CODESIGN_IDENTITY)" $(INSTALL_DIR)
+	codesign --force --options runtime --sign "$(CODESIGN_IDENTITY)" $(INSTALL_DIR)
 	@echo "installed/updated $(INSTALL_DIR)"
 
 dist: build
 	rm -rf $(APP_NAME).app
 	cp -R $(BUILD_DIR)/$(APP_NAME).app .
-	codesign --force --sign "$(CODESIGN_IDENTITY)" $(APP_NAME).app
+	codesign --force --options runtime --sign "$(CODESIGN_IDENTITY)" $(APP_NAME).app
 	zip -r $(APP_NAME).zip $(APP_NAME).app
 	@shasum -a 256 $(APP_NAME).zip
 
