@@ -171,6 +171,10 @@ package struct Config {
     package var floatingApps: Set<String> = []
     package var workspaceRules: [String: Int] = [:]
 
+    package var mouseGestureEnabled: Bool = false
+    package var mouseGestureButton: Int = 5
+    package var mouseGestureSensitivity: Double = 1.0
+
     package var trackpadSwipeEnabled: Bool = false
     package var trackpadSwipeFingers: Int = 3
     package var trackpadSwipeHaptic: String = "non"
@@ -365,6 +369,32 @@ package struct Config {
                 }
             }
             config.workspaceRules = rules
+        }
+
+        if let mouseEnabled = toml["mouse_gesture_enabled"] as? Bool {
+            config.mouseGestureEnabled = mouseEnabled
+        }
+        if let mouseButton = toml["mouse_gesture_button"] as? Int {
+            config.mouseGestureButton = mouseButton
+        }
+        if let mouseSensitivity = toml["mouse_gesture_sensitivity"] as? Double {
+            config.mouseGestureSensitivity = mouseSensitivity
+        } else if let mouseSensitivity = toml["mouse_gesture_sensitivity"] as? Int {
+            config.mouseGestureSensitivity = Double(mouseSensitivity)
+        }
+
+        if let mouse = toml["mouse_gesture"] as? [String: Any] {
+            if let enabled = mouse["enable"] as? Bool {
+                config.mouseGestureEnabled = enabled
+            }
+            if let button = mouse["button"] as? Int {
+                config.mouseGestureButton = button
+            }
+            if let sensitivity = mouse["sensitivity"] as? Double {
+                config.mouseGestureSensitivity = sensitivity
+            } else if let sensitivity = mouse["sensitivity"] as? Int {
+                config.mouseGestureSensitivity = Double(sensitivity)
+            }
         }
 
         // Parse trackpad configs (supporting both top-level and [trackpad] table)

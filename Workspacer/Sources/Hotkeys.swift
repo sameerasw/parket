@@ -9,7 +9,10 @@ package final class Hotkeys {
     private init() {}
 
     package func start() {
-        let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue)
+        let mask: CGEventMask = (1 << CGEventType.keyDown.rawValue) |
+                                (1 << CGEventType.otherMouseDown.rawValue) |
+                                (1 << CGEventType.otherMouseUp.rawValue) |
+                                (1 << CGEventType.otherMouseDragged.rawValue)
 
         guard let tap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
@@ -37,6 +40,32 @@ package final class Hotkeys {
             return Unmanaged.passRetained(event)
         }
 
+        let config = Config.shared
+        let targetButtonIndex = config.mouseGestureButton - 1
+        if type == .otherMouseDown {
+            let buttonNumber = event.getIntegerValueField(.mouseEventButtonNumber)
+            if config.mouseGestureEnabled && buttonNumber == targetButtonIndex {
+                MouseGestureManager.shared.startDrag(at: event.location)
+                return nil
+            }
+        } else if type == .otherMouseUp {
+            let buttonNumber = event.getIntegerValueField(.mouseEventButtonNumber)
+            if config.mouseGestureEnabled && buttonNumber == targetButtonIndex {
+                MouseGestureManager.shared.endDrag()
+                return nil
+            }
+        } else if type == .otherMouseDragged {
+            let buttonNumber = event.getIntegerValueField(.mouseEventButtonNumber)
+            if config.mouseGestureEnabled && buttonNumber == targetButtonIndex {
+                MouseGestureManager.shared.dragged(to: event.location)
+                return nil
+            }
+        }
+
+        guard type == .keyDown else {
+            return Unmanaged.passRetained(event)
+        }
+
         let flags = event.flags
         let keyCode = UInt16(event.getIntegerValueField(.keyboardEventKeycode))
 
@@ -45,7 +74,6 @@ package final class Hotkeys {
             return nil
         }
 
-        let config = Config.shared
         if config.modifier == .maskCommand && keyCode == Key.tab && flags.contains(.maskCommand) {
             return Unmanaged.passRetained(event)
         }
