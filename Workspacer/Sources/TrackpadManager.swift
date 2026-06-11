@@ -56,6 +56,8 @@ package final class TrackpadManager {
     private var sessionFingerIds: Set<Int32> = []
     private var startingAverageX: Float = 0.0
     private var hasTriggered = false
+    private var lastRumbleX: Float = 0.0
+    private var lastTriggeredDirection: Int = 0
 
     private init() {}
 
@@ -186,15 +188,33 @@ package final class TrackpadManager {
                 sessionFingerIds = currentIds
                 startingAverageX = avgX
                 hasTriggered = false
+                lastRumbleX = avgX
+                lastTriggeredDirection = 0
             } else if currentIds == sessionFingerIds {
                 // Ongoing swipe gesture
                 let diff = avgX - startingAverageX
                 let baseThreshold: Float = 0.15
                 let threshold = baseThreshold / Float(config.trackpadSwipeSensitivity)
 
+                // Subtle haptic rumble triggered based strictly on finger travel distance (displacement)
+                if config.trackpadSwipeRumble && !hasTriggered {
+                    let displacement = abs(avgX - lastRumbleX)
+                    let rumbleStep: Float = 0.015
+                    if displacement >= rumbleStep {
+                        NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+                        lastRumbleX = avgX
+                    }
+                }
+
                 if abs(diff) >= threshold {
-                    if !hasTriggered || config.trackpadSwipeMultiple {
-                        if diff < 0 {
+                    let direction = diff < 0 ? -1 : 1
+                    let isOppositeDirection = (direction != lastTriggeredDirection)
+
+                    if !hasTriggered || config.trackpadSwipeMultiple || isOppositeDirection {
+                        // Play main haptic feedback immediately
+                        self.playHaptic(config.trackpadSwipeHaptic)
+
+                        if direction < 0 {
                             // Swipe left (fingers move left) -> switch next
                             DispatchQueue.main.async {
                                 WorkspaceManager.shared.switchToNext()
@@ -206,16 +226,11 @@ package final class TrackpadManager {
                             }
                         }
 
-                        // Play haptic feedback
-                        DispatchQueue.main.async {
-                            self.playHaptic(config.trackpadSwipeHaptic)
-                        }
-
-                        if config.trackpadSwipeMultiple {
-                            startingAverageX = avgX
-                        } else {
-                            hasTriggered = true
-                        }
+                        // Reset session baseline relative to this trigger point
+                        startingAverageX = avgX
+                        lastRumbleX = avgX
+                        hasTriggered = true
+                        lastTriggeredDirection = direction
                     }
                 }
             } else {
@@ -223,12 +238,16 @@ package final class TrackpadManager {
                 sessionFingerIds = currentIds
                 startingAverageX = avgX
                 hasTriggered = false
+                lastRumbleX = avgX
+                lastTriggeredDirection = 0
             }
         } else {
             // Finger count doesn't match target, reset session if all fingers lifted
             if activeCount == 0 {
                 sessionFingerIds.removeAll()
                 hasTriggered = false
+                lastRumbleX = 0.0
+                lastTriggeredDirection = 0
             }
         }
     }
@@ -241,7 +260,11 @@ package final class TrackpadManager {
         case .light:
             NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
         case .strong:
+            // Stack two levelChange pulses 8ms apart so they fuse into one single, heavy tap
             NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.008) {
+                NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
+            }
         case .double:
             NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {

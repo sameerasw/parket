@@ -159,6 +159,7 @@ package struct Config {
     package var trackpadSwipeHaptic: String = "non"
     package var trackpadSwipeSensitivity: Double = 1.0
     package var trackpadSwipeMultiple: Bool = false
+    package var trackpadSwipeRumble: Bool = false
 
     package private(set) var numberKeys: [UInt16: Int] = buildNumberKeys(count: 9)
 
@@ -327,6 +328,9 @@ package struct Config {
         if let swipeMultiple = toml["trackpad_swipe_multiple"] as? Bool {
             config.trackpadSwipeMultiple = swipeMultiple
         }
+        if let swipeRumble = toml["trackpad_swipe_rumble"] as? Bool {
+            config.trackpadSwipeRumble = swipeRumble
+        }
 
         if let trackpad = toml["trackpad"] as? [String: Any] {
             if let enabled = trackpad["enable"] as? Bool {
@@ -345,6 +349,9 @@ package struct Config {
             }
             if let allowMultiple = trackpad["allow_multiple"] as? Bool {
                 config.trackpadSwipeMultiple = allowMultiple
+            }
+            if let rumble = trackpad["rumble"] as? Bool {
+                config.trackpadSwipeRumble = rumble
             }
         }
 
