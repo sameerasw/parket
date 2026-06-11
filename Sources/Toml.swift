@@ -74,6 +74,16 @@ package enum Toml {
     }
 
     private static func parseValue(_ s: String, line: Int) throws -> Any {
+        if s.hasPrefix("[") && s.hasSuffix("]") {
+            let content = String(s.dropFirst().dropLast()).trimmingCharacters(in: .whitespaces)
+            if content.isEmpty { return [Any]() }
+            let parts = content.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+            var array = [Any]()
+            for part in parts {
+                array.append(try parseValue(String(part), line: line))
+            }
+            return array
+        }
         if s.hasPrefix("\"") {
             guard s.count >= 2, s.hasSuffix("\"") else {
                 throw Error.parse(line: line, message: "unterminated string")

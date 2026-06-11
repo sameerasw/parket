@@ -4,6 +4,9 @@
 # number of workspaces (1-9)
 # workspace_count = 9
 
+# custom names for each workspace (optional)
+# workspace_names = ["Main", "Web", "Code", "Chat", "Music"]
+
 # master window width ratio (0.0-1.0)
 # master_ratio = 0.50
 

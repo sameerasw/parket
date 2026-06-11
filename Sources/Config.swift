@@ -143,6 +143,7 @@ package struct Config {
     package var hudOnWorkspaceSwitch: Bool = true
     package var hudOnLayoutSwitch: Bool = true
     package var hudOnConfigReload: Bool = true
+    package var workspaceNames: [String] = []
     package var modifier: CGEventFlags = .maskAlternate
     package var customBindings: [Binding] = [
         Binding(key: Key.return, shift: true, command: "open -n -a Terminal"),
@@ -150,6 +151,13 @@ package struct Config {
     package var bindings = BuiltinBindings()
 
     package private(set) var numberKeys: [UInt16: Int] = buildNumberKeys(count: 9)
+
+    package func workspaceName(for index: Int) -> String {
+        if index >= 0 && index < workspaceNames.count {
+            return workspaceNames[index]
+        }
+        return "\(index + 1)"
+    }
 
     private static func buildNumberKeys(count: Int) -> [UInt16: Int] {
         var map: [UInt16: Int] = [:]
@@ -247,6 +255,10 @@ package struct Config {
 
         if let hudOnConfig = toml["hud_on_config_reload"] as? Bool {
             config.hudOnConfigReload = hudOnConfig
+        }
+
+        if let names = toml["workspace_names"] as? [Any] {
+            config.workspaceNames = names.compactMap { $0 as? String }
         }
 
         if let posStr = toml["inactive_window_position"] as? String {

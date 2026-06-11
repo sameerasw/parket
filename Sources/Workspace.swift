@@ -51,7 +51,8 @@ package final class WorkspaceManager {
         }
         syncApplicationVisibility()
         StatusBar.shared.update()
-        HUDManager.shared.show(text: "Workspace \(index + 1)", systemImage: "desktopcomputer", type: .workspaceSwitch)
+        let name = Config.shared.workspaceName(for: index)
+        HUDManager.shared.show(text: name, systemImage: "desktopcomputer", type: .workspaceSwitch)
     }
 
     func switchToLast() {
@@ -96,7 +97,8 @@ package final class WorkspaceManager {
         }
         syncApplicationVisibility()
         StatusBar.shared.update()
-        HUDManager.shared.show(text: "Moved Window to Workspace \(index + 1)", systemImage: "arrow.right.to.line.alt", type: .workspaceSwitch)
+        let name = Config.shared.workspaceName(for: index)
+        HUDManager.shared.show(text: "Moved Window to \(name)", systemImage: "arrow.right.to.line.alt", type: .workspaceSwitch)
     }
 
     func refresh() {
@@ -203,7 +205,7 @@ package final class WorkspaceManager {
         focusedMonitor.toggleLayout()
         StatusBar.shared.update()
         let newLayout = focusedMonitor.layouts[focusedMonitor.active]
-        let layoutName = newLayout == .tile ? "Tiled" : "Monocle"
+        let layoutName = newLayout == .tile ? "Tiled" : "Full screen"
         let iconName = newLayout == .tile ? "square.grid.2x2" : "square"
         HUDManager.shared.show(text: "\(layoutName) Layout", systemImage: iconName, type: .layoutSwitch)
     }
