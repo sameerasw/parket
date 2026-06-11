@@ -136,6 +136,13 @@ package struct Config {
     package var enableCorners: Bool = false
     package var cornerRadius: CGFloat = 0
     package var enableDynamicMenubar: Bool = false
+    package var hudEnabled: Bool = true
+    package var hudPosition: String = "top"
+    package var hudYOffset: CGFloat = 50.0
+    package var hudDuration: Double = 1.5
+    package var hudOnWorkspaceSwitch: Bool = true
+    package var hudOnLayoutSwitch: Bool = true
+    package var hudOnConfigReload: Bool = true
     package var modifier: CGEventFlags = .maskAlternate
     package var customBindings: [Binding] = [
         Binding(key: Key.return, shift: true, command: "open -n -a Terminal"),
@@ -208,6 +215,38 @@ package struct Config {
 
         if let enableDynamic = toml["enable_dynamic_menubar"] as? Bool {
             config.enableDynamicMenubar = enableDynamic
+        }
+
+        if let hudEnabled = toml["hud_enabled"] as? Bool {
+            config.hudEnabled = hudEnabled
+        }
+
+        if let hudPosition = toml["hud_position"] as? String {
+            config.hudPosition = hudPosition.lowercased()
+        }
+
+        if let hudYOffsetVal = toml["hud_y_offset"] as? Double {
+            config.hudYOffset = CGFloat(hudYOffsetVal)
+        } else if let hudYOffsetVal = toml["hud_y_offset"] as? Int {
+            config.hudYOffset = CGFloat(hudYOffsetVal)
+        }
+
+        if let hudDurationVal = toml["hud_duration"] as? Double {
+            config.hudDuration = hudDurationVal
+        } else if let hudDurationVal = toml["hud_duration"] as? Int {
+            config.hudDuration = Double(hudDurationVal)
+        }
+
+        if let hudOnWS = toml["hud_on_workspace_switch"] as? Bool {
+            config.hudOnWorkspaceSwitch = hudOnWS
+        }
+
+        if let hudOnLayout = toml["hud_on_layout_switch"] as? Bool {
+            config.hudOnLayoutSwitch = hudOnLayout
+        }
+
+        if let hudOnConfig = toml["hud_on_config_reload"] as? Bool {
+            config.hudOnConfigReload = hudOnConfig
         }
 
         if let posStr = toml["inactive_window_position"] as? String {

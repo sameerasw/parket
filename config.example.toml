@@ -28,6 +28,15 @@
 # enable dynamic menu bar auto-hide (forces auto-hide in clamshell/docked mode, disables on built-in screen)
 # enable_dynamic_menubar = false
 
+# HUD overlay options
+# hud_enabled = true
+# hud_position = "top" # "top" or "bottom"
+# hud_y_offset = 50.0
+# hud_duration = 1.5
+# hud_on_workspace_switch = true
+# hud_on_layout_switch = true
+# hud_on_config_reload = true
+
 # global modifier key: "option", "control", "command"
 # modifier = "option"
 

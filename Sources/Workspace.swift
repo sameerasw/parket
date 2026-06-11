@@ -51,6 +51,7 @@ package final class WorkspaceManager {
         }
         syncApplicationVisibility()
         StatusBar.shared.update()
+        HUDManager.shared.show(text: "Workspace \(index + 1)", systemImage: "desktopcomputer", type: .workspaceSwitch)
     }
 
     func switchToLast() {
@@ -95,6 +96,7 @@ package final class WorkspaceManager {
         }
         syncApplicationVisibility()
         StatusBar.shared.update()
+        HUDManager.shared.show(text: "Moved Window to Workspace \(index + 1)", systemImage: "arrow.right.to.line.alt", type: .workspaceSwitch)
     }
 
     func refresh() {
@@ -200,6 +202,10 @@ package final class WorkspaceManager {
     func toggleLayout() {
         focusedMonitor.toggleLayout()
         StatusBar.shared.update()
+        let newLayout = focusedMonitor.layouts[focusedMonitor.active]
+        let layoutName = newLayout == .tile ? "Tiled" : "Monocle"
+        let iconName = newLayout == .tile ? "square.grid.2x2" : "square"
+        HUDManager.shared.show(text: "\(layoutName) Layout", systemImage: iconName, type: .layoutSwitch)
     }
 
     func toggleActiveWindowFloating() {
@@ -212,6 +218,9 @@ package final class WorkspaceManager {
             focused.raise()
         }
         StatusBar.shared.update()
+        let status = !isFloating ? "Floating" : "Tiled"
+        let icon = !isFloating ? "square.stack.3d.up" : "square.grid.2x2"
+        HUDManager.shared.show(text: "Window: \(status)", systemImage: icon, type: .other)
     }
 
     func focusMonitor(offset: Int) {
@@ -420,6 +429,7 @@ package final class WorkspaceManager {
         CornerMaskManager.shared.configure()
         MenuBarManager.shared.configure()
         StatusBar.shared.update()
+        HUDManager.shared.show(text: "Config Reloaded", systemImage: "arrow.clockwise", type: .configReload)
         fputs("parket: config reloaded\n", stderr)
     }
 
