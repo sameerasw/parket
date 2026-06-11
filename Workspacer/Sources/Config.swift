@@ -126,6 +126,7 @@ package struct BuiltinBindings {
     var toggleDynamicMenubar: (key: UInt16, shift: Bool) = (Key.m, true)
     var shrinkWindow: (key: UInt16, shift: Bool) = (Key.minus, false)
     var expandWindow: (key: UInt16, shift: Bool) = (Key.equal, false)
+    var toggleAlwaysCenterFloating: (key: UInt16, shift: Bool) = (Key.o, false)
 }
 
 package struct Config {
@@ -156,6 +157,8 @@ package struct Config {
         Binding(key: Key.return, shift: true, command: "open -n -a Terminal"),
     ]
     package var bindings = BuiltinBindings()
+
+    package var alwaysCenterFloating: Bool = false
 
     package var trackpadSwipeEnabled: Bool = false
     package var trackpadSwipeFingers: Int = 3
@@ -325,6 +328,10 @@ package struct Config {
             }
         }
 
+        if let alwaysCenter = toml["always_center_floating"] as? Bool {
+            config.alwaysCenterFloating = alwaysCenter
+        }
+
         // Parse trackpad configs (supporting both top-level and [trackpad] table)
         if let swipeEnabled = toml["trackpad_swipe_enabled"] as? Bool {
             config.trackpadSwipeEnabled = swipeEnabled
@@ -391,6 +398,7 @@ package struct Config {
             applyBinding(bindings, "toggle_dynamic_menubar", to: &config.bindings.toggleDynamicMenubar)
             applyBinding(bindings, "shrink_window", to: &config.bindings.shrinkWindow)
             applyBinding(bindings, "expand_window", to: &config.bindings.expandWindow)
+            applyBinding(bindings, "toggle_always_center_floating", to: &config.bindings.toggleAlwaysCenterFloating)
         }
 
         if let customs = toml["custom"] as? [[String: Any]] {

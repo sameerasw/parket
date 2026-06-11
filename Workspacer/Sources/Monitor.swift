@@ -46,6 +46,12 @@ package final class Monitor {
             win.hideOffscreen(screen)
         }
 
+        if Config.shared.alwaysCenterFloating {
+            for win in workspaces[active] where win.isFloating {
+                centerFloatingWindow(win, on: self.screen)
+            }
+        }
+
         retile()
         restoreFocusedWindow()
     }
@@ -65,6 +71,12 @@ package final class Monitor {
                     win.floatingFrame = frame
                 }
                 win.hideOffscreen(screen)
+            }
+
+            if Config.shared.alwaysCenterFloating {
+                for win in workspaces[active] where win.isFloating {
+                    centerFloatingWindow(win, on: self.screen)
+                }
             }
         }
 
@@ -124,6 +136,9 @@ package final class Monitor {
         }
         guard existing == .missing else { return existing }
         workspaces[active].insert(window, at: 0)
+        if window.isFloating {
+            centerFloatingWindow(window, on: self.screen)
+        }
         scheduleRetile()
         return .inserted
     }
@@ -139,6 +154,9 @@ package final class Monitor {
             return addWindow(window)
         }
         workspaces[workspaceIndex].insert(window, at: 0)
+        if window.isFloating {
+            centerFloatingWindow(window, on: self.screen)
+        }
         if workspaceIndex == active {
             scheduleRetile()
         } else {
@@ -503,5 +521,22 @@ package final class Monitor {
                 win.setFrame(CGRect(origin: center, size: size))
             }
         }
+    }
+
+    private func centerFloatingWindow(_ window: TrackedWindow, on screen: NSScreen) {
+        let screenFrame = WindowManager.screenFrame(for: screen)
+        var size = CGSize(width: screenFrame.width * 0.7, height: screenFrame.height * 0.7)
+        if let savedFrame = window.floatingFrame {
+            if savedFrame.width > 10 && savedFrame.height > 10 {
+                size = savedFrame.size
+            }
+        }
+        let center = CGPoint(
+            x: screenFrame.origin.x + (screenFrame.width - size.width) / 2,
+            y: screenFrame.origin.y + (screenFrame.height - size.height) / 2
+        )
+        let centeredFrame = CGRect(origin: center, size: size)
+        window.setFrame(centeredFrame)
+        window.floatingFrame = centeredFrame
     }
 }

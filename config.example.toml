@@ -40,6 +40,9 @@
 # enable dynamic menu bar auto-hide (forces auto-hide in clamshell/docked mode, disables on built-in screen)
 # enable_dynamic_menubar = false
 
+# always center floating windows on workspace switch (if disabled, they are centered at start and when toggled but otherwise remain in place)
+# always_center_floating = false
+
 # HUD overlay options
 # hud_enabled = true
 # hud_position = "top" # "top" or "bottom"
@@ -77,6 +80,7 @@
 # toggle_dynamic_menubar = "shift+m"
 # shrink_window = "minus"
 # expand_window = "equal"
+# toggle_always_center_floating = "o"
 
 # custom key bindings that run shell commands
 # [[custom]]

@@ -273,7 +273,7 @@ private struct HUDView: View {
                         .animation(.spring(response: 0.38, dampingFraction: 0.82), value: highlightedIndex)
                     }
                     .frame(width: 320, height: 50)
-                    .mask(
+                    .mask(      
                         LinearGradient(
                             gradient: Gradient(stops: [
                                 .init(color: .clear, location: 0.0),

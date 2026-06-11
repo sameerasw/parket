@@ -142,6 +142,10 @@ package final class Hotkeys {
             DispatchQueue.main.async { WorkspaceManager.shared.toggleActiveWindowFloating() }
             return nil
         }
+        if keyCode == b.toggleAlwaysCenterFloating.key && hasShift == b.toggleAlwaysCenterFloating.shift {
+            DispatchQueue.main.async { WorkspaceManager.shared.toggleAlwaysCenterFloating() }
+            return nil
+        }
         if keyCode == b.reloadConfig.key && hasShift == b.reloadConfig.shift {
             DispatchQueue.main.async { WorkspaceManager.shared.reloadConfig() }
             return nil

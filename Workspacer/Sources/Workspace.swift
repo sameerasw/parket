@@ -224,7 +224,26 @@ package final class WorkspaceManager {
     func toggleActiveWindowFloating() {
         guard let focused = WindowManager.focusedWindow() else { return }
         let isFloating = focused.isFloating
-        FloatingRegistry.shared.setFloating(!isFloating, for: focused)
+        
+        if !isFloating {
+            let screenFrame = WindowManager.screenFrame(for: focusedMonitor.screen)
+            var size = CGSize(width: screenFrame.width * 0.7, height: screenFrame.height * 0.7)
+            if let savedFrame = FloatingRegistry.shared.floatingFrame(focused) {
+                if savedFrame.width > 10 && savedFrame.height > 10 {
+                    size = savedFrame.size
+                }
+            }
+            let center = CGPoint(
+                x: screenFrame.origin.x + (screenFrame.width - size.width) / 2,
+                y: screenFrame.origin.y + (screenFrame.height - size.height) / 2
+            )
+            let centeredFrame = CGRect(origin: center, size: size)
+            FloatingRegistry.shared.setFloatingFrame(centeredFrame, for: focused)
+            FloatingRegistry.shared.setFloating(true, for: focused)
+        } else {
+            FloatingRegistry.shared.setFloating(false, for: focused)
+        }
+
         focusedMonitor.retile()
         if !isFloating {
             focused.focus()
@@ -234,6 +253,12 @@ package final class WorkspaceManager {
         let status = !isFloating ? "Floating" : "Tiled"
         let icon = !isFloating ? "square.stack.3d.up" : "square.grid.2x2"
         HUDManager.shared.show(text: "Window: \(status)", systemImage: icon, type: .other)
+    }
+
+    func toggleAlwaysCenterFloating() {
+        Config.shared.alwaysCenterFloating.toggle()
+        let status = Config.shared.alwaysCenterFloating ? "Enabled" : "Disabled"
+        HUDManager.shared.show(text: "Always Center Floating: \(status)", systemImage: "align.horizontal.center.fill", type: .other)
     }
 
     func toggleMenuBarAutoHide() {
