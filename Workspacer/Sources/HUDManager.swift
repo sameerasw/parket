@@ -17,7 +17,7 @@ package final class HUDManager {
 
     private init() {}
 
-    package func show(text: String, systemImage: String, type: HUDActionType, slideOffset: CGFloat = 0, isOn: Bool? = nil, isPersistent: Bool = false) {
+    package func show(text: String, systemImage: String, type: HUDActionType, slideOffset: CGFloat = 0, isOn: Bool? = nil, isPersistent: Bool = false, swipeProgress: CGFloat = 0) {
         let config = Config.shared
         guard config.hudEnabled else { return }
 
@@ -39,9 +39,9 @@ package final class HUDManager {
             let screen = WorkspaceManager.shared.focusedMonitor.screen
             
             if hudWindow == nil {
-                hudWindow = HUDWindow(screen: screen, text: text, systemImage: systemImage, slideOffset: slideOffset, isOn: isOn)
+                hudWindow = HUDWindow(screen: screen, text: text, systemImage: systemImage, slideOffset: slideOffset, isOn: isOn, type: type, swipeProgress: swipeProgress)
             } else {
-                hudWindow?.updateContent(text: text, systemImage: systemImage, slideOffset: slideOffset, isOn: isOn)
+                hudWindow?.updateContent(text: text, systemImage: systemImage, slideOffset: slideOffset, isOn: isOn, type: type, swipeProgress: swipeProgress)
                 hudWindow?.updatePosition(screen: screen)
             }
 
@@ -82,12 +82,17 @@ private final class HUDWindow: NSWindow {
     private var currentSystemImage: String
     private var currentSlideOffset: CGFloat
     private var currentIsOn: Bool?
+    private var currentType: HUDActionType
+    private var currentSwipeProgress: CGFloat
+    private var isFadingIn = false
 
-    init(screen: NSScreen, text: String, systemImage: String, slideOffset: CGFloat, isOn: Bool?) {
+    init(screen: NSScreen, text: String, systemImage: String, slideOffset: CGFloat, isOn: Bool?, type: HUDActionType, swipeProgress: CGFloat) {
         self.currentText = text
         self.currentSystemImage = systemImage
         self.currentSlideOffset = slideOffset
         self.currentIsOn = isOn
+        self.currentType = type
+        self.currentSwipeProgress = swipeProgress
         
         let config = Config.shared
         let screenFrame = screen.frame
@@ -120,17 +125,34 @@ private final class HUDWindow: NSWindow {
         orderFrontRegardless()
     }
 
-    func updateContent(text: String, systemImage: String, slideOffset: CGFloat, isOn: Bool?) {
+    func updateContent(text: String, systemImage: String, slideOffset: CGFloat, isOn: Bool?, type: HUDActionType, swipeProgress: CGFloat) {
         self.currentText = text
         self.currentSystemImage = systemImage
         self.currentSlideOffset = slideOffset
         self.currentIsOn = isOn
+        self.currentType = type
+        self.currentSwipeProgress = swipeProgress
         updateContentView()
     }
 
     private func updateContentView() {
-        let hudView = HUDView(text: currentText, systemImage: currentSystemImage, slideOffset: currentSlideOffset, isOn: currentIsOn)
-            .id(UUID())
+        let activeIndex = WorkspaceManager.shared.focusedMonitor.active
+        let count = Config.shared.workspaceCount
+        var names: [String] = []
+        for i in 0..<count {
+            names.append(Config.shared.workspaceName(for: i))
+        }
+
+        let hudView = HUDView(
+            type: currentType,
+            text: currentText,
+            systemImage: currentSystemImage,
+            slideOffset: currentSlideOffset,
+            isOn: currentIsOn,
+            activeIndex: activeIndex,
+            workspaceNames: names,
+            swipeProgress: currentSwipeProgress
+        )
         let anyView = AnyView(hudView)
         if hostingView == nil {
             hostingView = NSHostingView(rootView: anyView)
@@ -157,7 +179,15 @@ private final class HUDWindow: NSWindow {
     }
 
     func fadeIn() {
-        self.alphaValue = 1.0
+        guard !isFadingIn && self.alphaValue < 1.0 else { return }
+        isFadingIn = true
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = 0.12
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            self.animator().alphaValue = 1.0
+        }, completionHandler: { [weak self] in
+            self?.isFadingIn = false
+        })
     }
 
     func fadeOut(completion: @escaping () -> Void) {
@@ -170,55 +200,99 @@ private final class HUDWindow: NSWindow {
 }
 
 private struct HUDView: View {
+    let type: HUDActionType
     let text: String
     let systemImage: String
     let slideOffset: CGFloat
     let isOn: Bool?
-    @State private var animOffset: CGFloat = 0
-    @State private var scale: CGFloat = 1.0
-    @State private var opacity: Double = 0
+    
+    // For workspace switch picker view
+    let activeIndex: Int
+    let workspaceNames: [String]
+    let swipeProgress: CGFloat
+    
+    @Namespace private var namespace
 
     var body: some View {
         ZStack {
-            HStack(spacing: 14) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.accentColor)
+            if type == .workspaceSwitch {
+                let itemWidth: CGFloat = 90
+                let count = workspaceNames.count
                 
-                Text(text)
-                    .font(.system(size: 13, weight: .medium, design: .rounded))
-                    .foregroundStyle(.primary)
+                // Keep highlighted index strictly to the active workspace index so it doesn't prematurely switch
+                let highlightedIndex = activeIndex
                 
-                if let isOn = isOn {
-                    Toggle("", isOn: SwiftUI.Binding.constant(isOn))
-                        .toggleStyle(.switch)
-                        // .disabled(true)
-                        .controlSize(.small)
+                // Offset shifts workspace list based on current active workspace + swipe progress
+                let totalOffset = ((CGFloat(count) - 1.0) / 2.0 - CGFloat(activeIndex) + swipeProgress) * itemWidth
+
+                ZStack {
+                    ZStack {
+                        HStack(spacing: 0) {
+                            ForEach(0..<count, id: \.self) { index in
+                                let isActive = (index == highlightedIndex)
+                                Text(workspaceNames[index])
+                                    .font(.system(size: 13, weight: isActive ? .bold : .medium, design: .rounded))
+                                    .foregroundColor(isActive ? .white : .primary.opacity(0.65))
+                                    .frame(width: itemWidth - 10, height: 36)
+                                    .background(
+                                        ZStack {
+                                            if isActive {
+                                                RoundedRectangle(cornerRadius: 16)
+                                                    .fill(Color.accentColor)
+                                                    .matchedGeometryEffect(id: "activePill", in: namespace)
+                                            } else {
+                                                RoundedRectangle(cornerRadius: 16)
+                                                    .fill(Color.primary.opacity(0.04))
+                                            }
+                                        }
+                                    )
+                                    .scaleEffect(isActive ? 1.08 : 1.0)
+                                    .frame(width: itemWidth) // Keeps fixed item slots
+                            }
+                        }
+                        .offset(x: totalOffset)
+                        .frame(width: itemWidth * CGFloat(count))
+                        .animation(.interactiveSpring(response: 0.2, dampingFraction: 0.8), value: highlightedIndex)
+                    }
+                    .frame(width: 320, height: 50)
+                    .mask(
+                        LinearGradient(
+                            gradient: Gradient(stops: [
+                                .init(color: .clear, location: 0.0),
+                                .init(color: .black, location: 0.2),
+                                .init(color: .black, location: 0.8),
+                                .init(color: .clear, location: 1.0)
+                            ]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
                 }
+                .frame(width: 320, height: 50)
+                .applyGlassViewIfAvailable(cornerRadius: 24)
+                .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
+            } else {
+                HStack(spacing: 14) {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(.accentColor)
+                    
+                    Text(text)
+                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .foregroundStyle(.primary)
+                    
+                    if let isOn = isOn {
+                        Toggle("", isOn: SwiftUI.Binding.constant(isOn))
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .applyGlassViewIfAvailable(cornerRadius: 24)
+                .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .applyGlassViewIfAvailable(cornerRadius: 24)
-            .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
-            .scaleEffect(scale)
-            .offset(x: animOffset)
-            .opacity(opacity)
         }
         .frame(width: 800, height: 100)
-        .onAppear {
-            if slideOffset != 0 {
-                animOffset = slideOffset
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
-                    animOffset = 0
-                    opacity = 1.0
-                }
-            } else {
-                animOffset = 0
-                scale = 1.0
-                withAnimation(.easeOut(duration: 0.12)) {
-                    opacity = 1.0
-                }
-            }
-        }
     }
 }

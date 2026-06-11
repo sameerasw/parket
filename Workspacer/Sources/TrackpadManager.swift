@@ -198,14 +198,15 @@ package final class TrackpadManager {
                 let baseThreshold: Float = 0.15
                 let threshold = baseThreshold / Float(config.trackpadSwipeSensitivity)
 
-                // Show HUD overlay persistently as soon as swipe movement starts
-                if config.hudEnabled && config.hudOnWorkspaceSwitch && !hasShownHUD {
+                // Show HUD overlay persistently as soon as swipe movement starts and update its position
+                if config.hudEnabled && config.hudOnWorkspaceSwitch {
                     let noiseThreshold = threshold * 0.05
-                    if abs(diff) >= noiseThreshold {
+                    if hasShownHUD || abs(diff) >= noiseThreshold {
                         let activeIndex = WorkspaceManager.shared.focusedMonitor.active
                         let name = config.workspaceName(for: activeIndex)
+                        let progress = CGFloat(diff / threshold)
                         DispatchQueue.main.async {
-                            HUDManager.shared.show(text: name, systemImage: "desktopcomputer", type: .workspaceSwitch, isPersistent: true)
+                            HUDManager.shared.show(text: name, systemImage: "desktopcomputer", type: .workspaceSwitch, isPersistent: true, swipeProgress: progress)
                         }
                         hasShownHUD = true
                     }
