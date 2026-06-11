@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "parket",
+    name: "Workspacer",
     platforms: [.macOS(.v14)],
     targets: [
         .target(
-            name: "ParketCore",
-            path: "Sources",
+            name: "WorkspacerCore",
+            path: "Workspacer/Sources",
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("ApplicationServices"),
@@ -15,13 +15,13 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "parket",
-            dependencies: ["ParketCore"],
-            path: "Entry"
+            name: "workspacer",
+            dependencies: ["WorkspacerCore"],
+            path: "Workspacer/Entry"
         ),
         .executableTarget(
-            name: "parket-tests",
-            dependencies: ["ParketCore"],
+            name: "workspacer-tests",
+            dependencies: ["WorkspacerCore"],
             path: "Tests"
         ),
     ]

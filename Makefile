@@ -1,48 +1,27 @@
-APP_NAME = parket
-BUNDLE = $(APP_NAME).app
-INSTALL_DIR = /Applications/$(BUNDLE)
-BUILD_DIR = .build/release
-BUNDLE_ID = com.parket.app
+APP_NAME = Workspacer
+INSTALL_DIR = /Applications/$(APP_NAME).app
+BUILD_DIR = .build/derived_data/Build/Products/Release
 CODESIGN_IDENTITY ?= -
-CODESIGN_REQUIREMENTS ?= =designated => identifier "$(BUNDLE_ID)"
 
-.PHONY: build test check install clean dist benchmark
+.PHONY: build test install clean dist
 
 build:
-	swift build --product parket -c release
-
-test:
-	swift build --product parket-tests
-	.build/debug/parket-tests
-
-check: test build
+	xcodebuild -project Workspacer.xcodeproj -scheme Workspacer -configuration Release -derivedDataPath .build/derived_data build
 
 install: build
-	@if [ ! -d "$(INSTALL_DIR)" ]; then \
-		mkdir -p $(INSTALL_DIR)/Contents/MacOS; \
-		cp Info.plist $(INSTALL_DIR)/Contents/; \
-		echo "fresh install to $(INSTALL_DIR)"; \
-		echo "grant accessibility permission in system settings, then: open /Applications/$(APP_NAME).app"; \
-	fi
-	cp $(BUILD_DIR)/$(APP_NAME) $(INSTALL_DIR)/Contents/MacOS/
-	codesign --force --sign "$(CODESIGN_IDENTITY)" --requirements '$(CODESIGN_REQUIREMENTS)' $(INSTALL_DIR)
-	@echo "updated $(INSTALL_DIR)"
+	rm -rf $(INSTALL_DIR)
+	cp -R $(BUILD_DIR)/$(APP_NAME).app $(INSTALL_DIR)
+	codesign --force --sign "$(CODESIGN_IDENTITY)" $(INSTALL_DIR)
+	@echo "installed/updated $(INSTALL_DIR)"
 
 dist: build
-	rm -rf $(BUNDLE)
-	mkdir -p $(BUNDLE)/Contents/MacOS
-	cp Info.plist $(BUNDLE)/Contents/
-	cp $(BUILD_DIR)/$(APP_NAME) $(BUNDLE)/Contents/MacOS/
-	codesign --force --sign "$(CODESIGN_IDENTITY)" --requirements '$(CODESIGN_REQUIREMENTS)' $(BUNDLE)
-	zip -r $(APP_NAME).zip $(BUNDLE)
+	rm -rf $(APP_NAME).app
+	cp -R $(BUILD_DIR)/$(APP_NAME).app .
+	codesign --force --sign "$(CODESIGN_IDENTITY)" $(APP_NAME).app
+	zip -r $(APP_NAME).zip $(APP_NAME).app
 	@shasum -a 256 $(APP_NAME).zip
 
 clean:
-	swift package clean
-	rm -rf $(BUNDLE) $(APP_NAME).zip
+	rm -rf .build $(APP_NAME).zip $(APP_NAME).app
 
-benchmark:
-	bash scripts/benchmark.sh run
 
-uninstall:
-	rm -rf $(INSTALL_DIR)
