@@ -154,6 +154,12 @@ package struct Config {
     ]
     package var bindings = BuiltinBindings()
 
+    package var trackpadSwipeEnabled: Bool = false
+    package var trackpadSwipeFingers: Int = 3
+    package var trackpadSwipeHaptic: String = "non"
+    package var trackpadSwipeSensitivity: Double = 1.0
+    package var trackpadSwipeMultiple: Bool = false
+
     package private(set) var numberKeys: [UInt16: Int] = buildNumberKeys(count: 9)
 
     package func workspaceName(for index: Int) -> String {
@@ -300,6 +306,45 @@ package struct Config {
             case "control": config.modifier = .maskControl
             case "command": config.modifier = .maskCommand
             default: fputs("workspacer: unknown modifier '\(mod)', using option\n", stderr)
+            }
+        }
+
+        // Parse trackpad configs (supporting both top-level and [trackpad] table)
+        if let swipeEnabled = toml["trackpad_swipe_enabled"] as? Bool {
+            config.trackpadSwipeEnabled = swipeEnabled
+        }
+        if let swipeFingers = toml["trackpad_swipe_fingers"] as? Int {
+            config.trackpadSwipeFingers = swipeFingers
+        }
+        if let swipeHaptic = toml["trackpad_swipe_haptic"] as? String {
+            config.trackpadSwipeHaptic = swipeHaptic.lowercased()
+        }
+        if let swipeSensitivity = toml["trackpad_swipe_sensitivity"] as? Double {
+            config.trackpadSwipeSensitivity = swipeSensitivity
+        } else if let swipeSensitivity = toml["trackpad_swipe_sensitivity"] as? Int {
+            config.trackpadSwipeSensitivity = Double(swipeSensitivity)
+        }
+        if let swipeMultiple = toml["trackpad_swipe_multiple"] as? Bool {
+            config.trackpadSwipeMultiple = swipeMultiple
+        }
+
+        if let trackpad = toml["trackpad"] as? [String: Any] {
+            if let enabled = trackpad["enable"] as? Bool {
+                config.trackpadSwipeEnabled = enabled
+            }
+            if let fingers = trackpad["fingers"] as? Int, fingers == 3 || fingers == 4 {
+                config.trackpadSwipeFingers = fingers
+            }
+            if let haptic = trackpad["haptic_type"] as? String {
+                config.trackpadSwipeHaptic = haptic.lowercased()
+            }
+            if let sensitivity = trackpad["sensitivity"] as? Double {
+                config.trackpadSwipeSensitivity = sensitivity
+            } else if let sensitivity = trackpad["sensitivity"] as? Int {
+                config.trackpadSwipeSensitivity = Double(sensitivity)
+            }
+            if let allowMultiple = trackpad["allow_multiple"] as? Bool {
+                config.trackpadSwipeMultiple = allowMultiple
             }
         }
 

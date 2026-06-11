@@ -453,6 +453,7 @@ package final class WorkspaceManager {
         }
         CornerMaskManager.shared.configure()
         MenuBarManager.shared.configure()
+        TrackpadManager.shared.reload()
         StatusBar.shared.update()
         HUDManager.shared.show(text: "Config Reloaded", systemImage: "arrow.clockwise", type: .configReload)
         fputs("parket: config reloaded\n", stderr)

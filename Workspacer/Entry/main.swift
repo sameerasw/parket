@@ -50,6 +50,8 @@ hotkeys.start()
 let observer = WindowObserver.shared
 observer.start()
 
+TrackpadManager.shared.start()
+
 NotificationCenter.default.addObserver(
     forName: NSApplication.didChangeScreenParametersNotification,
     object: nil, queue: .main

@@ -1,0 +1,260 @@
+import Cocoa
+
+struct MTPoint {
+    var x: Float
+    var y: Float
+}
+
+struct MTReadout {
+    var pos: MTPoint
+    var vel: MTPoint
+}
+
+struct MTTouch {
+    var frame: Int32
+    var timestamp: Double
+    var identifier: Int32
+    var state: Int32
+    var foo3: Int32
+    var foo4: Int32
+    var normalized: MTReadout
+    var size: Float
+    var zero1: Int32
+    var angle: Float
+    var majorAxis: Float
+    var minorAxis: Float
+    var mm: MTReadout
+    var zero2_0: Int32
+    var zero2_1: Int32
+    var unk2: Float
+}
+
+typealias MTDeviceCreateDefaultFunc = @convention(c) () -> UnsafeMutableRawPointer?
+typealias MTDeviceCreateListFunc = @convention(c) () -> Unmanaged<CFArray>?
+typealias MTDeviceStartFunc = @convention(c) (UnsafeMutableRawPointer, Int32) -> Void
+typealias MTDeviceStopFunc = @convention(c) (UnsafeMutableRawPointer) -> Void
+typealias MTRegisterContactFrameCallbackFunc = @convention(c) (
+    UnsafeMutableRawPointer,
+    @convention(c) (UnsafeMutableRawPointer?, UnsafeRawPointer?, Int32, Double, Int32) -> Int32
+) -> Void
+typealias MTUnregisterContactFrameCallbackFunc = @convention(c) (
+    UnsafeMutableRawPointer,
+    @convention(c) (UnsafeRawPointer?, UnsafeRawPointer?, Int32, Double, Int32) -> Int32
+) -> Void
+
+package final class TrackpadManager {
+    package static let shared = TrackpadManager()
+
+    private var isTracking = false
+    private var activeDevices: [UnsafeMutableRawPointer] = []
+    
+    // Loaded functions
+    private var mtDeviceStop: MTDeviceStopFunc?
+    private var mtUnregisterCallback: MTUnregisterContactFrameCallbackFunc?
+
+    // Gesture tracking state
+    private var sessionFingerIds: Set<Int32> = []
+    private var startingAverageX: Float = 0.0
+    private var hasTriggered = false
+
+    private init() {}
+
+    package func start() {
+        guard Config.shared.trackpadSwipeEnabled else {
+            fputs("workspacer: trackpad swipe support is disabled in config\n", stderr)
+            return
+        }
+        guard !isTracking else { return }
+
+        guard let handle = dlopen("/System/Library/PrivateFrameworks/MultitouchSupport.framework/MultitouchSupport", RTLD_NOW) else {
+            fputs("workspacer: failed to load MultitouchSupport.framework\n", stderr)
+            return
+        }
+
+        guard let createList = dlsym(handle, "MTDeviceCreateList"),
+              let deviceStart = dlsym(handle, "MTDeviceStart"),
+              let deviceStop = dlsym(handle, "MTDeviceStop"),
+              let registerCallback = dlsym(handle, "MTRegisterContactFrameCallback")
+              else {
+            fputs("workspacer: failed to load MultitouchSupport symbols\n", stderr)
+            return
+        }
+        
+        let mtUnregisterCallbackSym = dlsym(handle, "MTUnregisterContactFrameCallback") ?? registerCallback
+        let mtDeviceCreateDefaultSym = dlsym(handle, "MTDeviceCreateDefault")
+
+        let MTDeviceCreateList = unsafeBitCast(createList, to: MTDeviceCreateListFunc.self)
+        let MTDeviceStart = unsafeBitCast(deviceStart, to: MTDeviceStartFunc.self)
+        let MTRegisterContactFrameCallback = unsafeBitCast(registerCallback, to: MTRegisterContactFrameCallbackFunc.self)
+        let MTDeviceCreateDefault = mtDeviceCreateDefaultSym.map { unsafeBitCast($0, to: MTDeviceCreateDefaultFunc.self) }
+        
+        self.mtDeviceStop = unsafeBitCast(deviceStop, to: MTDeviceStopFunc.self)
+        self.mtUnregisterCallback = unsafeBitCast(mtUnregisterCallbackSym, to: MTUnregisterContactFrameCallbackFunc.self)
+
+        var deviceCount = 0
+        if let devicesUnmanaged = MTDeviceCreateList() {
+            let devices = devicesUnmanaged.takeRetainedValue()
+            let count = CFArrayGetCount(devices)
+            fputs("workspacer: MTDeviceCreateList found \(count) devices\n", stderr)
+
+            for i in 0..<count {
+                if let deviceRaw = CFArrayGetValueAtIndex(devices, i) {
+                    let device = UnsafeMutableRawPointer(mutating: deviceRaw)
+                    
+                    MTRegisterContactFrameCallback(device) { device, contacts, numContacts, timestamp, frame in
+                        TrackpadManager.shared.handleContacts(contacts, count: numContacts)
+                        return 0
+                    }
+                    MTDeviceStart(device, 0)
+                    activeDevices.append(device)
+                    deviceCount += 1
+                }
+            }
+        } else {
+            fputs("workspacer: MTDeviceCreateList returned nil\n", stderr)
+        }
+
+        if deviceCount == 0, let createDefault = MTDeviceCreateDefault, let defaultDevice = createDefault() {
+            fputs("workspacer: using MTDeviceCreateDefault fallback\n", stderr)
+            MTRegisterContactFrameCallback(defaultDevice) { device, contacts, numContacts, timestamp, frame in
+                TrackpadManager.shared.handleContacts(contacts, count: numContacts)
+                return 0
+            }
+            MTDeviceStart(defaultDevice, 0)
+            activeDevices.append(defaultDevice)
+            deviceCount += 1
+        }
+        
+        if deviceCount > 0 {
+            isTracking = true
+            fputs("workspacer: trackpad swipe gesture monitoring started on \(deviceCount) devices\n", stderr)
+        } else {
+            fputs("workspacer: no multitouch devices registered\n", stderr)
+        }
+    }
+
+    package func stop() {
+        guard isTracking else { return }
+        
+        for device in activeDevices {
+            // Note: We don't call mtUnregisterCallback and mtDeviceStop sequentially in the same block if it causes crashes,
+            // but normally we can just call stop on device.
+            if let stopFunc = mtDeviceStop {
+                stopFunc(device)
+            }
+        }
+        activeDevices.removeAll()
+        isTracking = false
+        sessionFingerIds.removeAll()
+        hasTriggered = false
+        fputs("workspacer: trackpad swipe gesture monitoring stopped\n", stderr)
+    }
+
+    package func reload() {
+        stop()
+        if Config.shared.trackpadSwipeEnabled {
+            start()
+        }
+    }
+
+    private func handleContacts(_ contactsPtr: UnsafeRawPointer?, count: Int32) {
+        guard let contacts = contactsPtr?.assumingMemoryBound(to: MTTouch.self) else { return }
+        let config = Config.shared
+        guard config.trackpadSwipeEnabled else { return }
+
+        let targetFingers = config.trackpadSwipeFingers
+
+        // Filter and map active touches
+        var currentFingers: [Int32: Float] = [:]
+        for i in 0..<Int(count) {
+            let contact = contacts[i]
+            // state: 4 is touching, 3 is making, 5 is breaking, 7 is leaving
+            // Ignore breaking or leaving touches to avoid false triggers
+            if contact.state != 5 && contact.state != 7 {
+                currentFingers[contact.identifier] = contact.normalized.pos.x
+            }
+        }
+
+        let activeCount = currentFingers.count
+
+        if activeCount == targetFingers {
+            let currentIds = Set(currentFingers.keys)
+            let avgX = currentFingers.values.reduce(0, +) / Float(activeCount)
+
+            if sessionFingerIds.isEmpty {
+                // Initialize swipe session
+                sessionFingerIds = currentIds
+                startingAverageX = avgX
+                hasTriggered = false
+            } else if currentIds == sessionFingerIds {
+                // Ongoing swipe gesture
+                let diff = avgX - startingAverageX
+                let baseThreshold: Float = 0.15
+                let threshold = baseThreshold / Float(config.trackpadSwipeSensitivity)
+
+                if abs(diff) >= threshold {
+                    if !hasTriggered || config.trackpadSwipeMultiple {
+                        if diff < 0 {
+                            // Swipe left (fingers move left) -> switch next
+                            DispatchQueue.main.async {
+                                WorkspaceManager.shared.switchToNext()
+                            }
+                        } else {
+                            // Swipe right (fingers move right) -> switch prev
+                            DispatchQueue.main.async {
+                                WorkspaceManager.shared.switchToPrev()
+                            }
+                        }
+
+                        // Play haptic feedback
+                        DispatchQueue.main.async {
+                            self.playHaptic(config.trackpadSwipeHaptic)
+                        }
+
+                        if config.trackpadSwipeMultiple {
+                            startingAverageX = avgX
+                        } else {
+                            hasTriggered = true
+                        }
+                    }
+                }
+            } else {
+                // Finger IDs changed, reset starting point
+                sessionFingerIds = currentIds
+                startingAverageX = avgX
+                hasTriggered = false
+            }
+        } else {
+            // Finger count doesn't match target, reset session if all fingers lifted
+            if activeCount == 0 {
+                sessionFingerIds.removeAll()
+                hasTriggered = false
+            }
+        }
+    }
+
+    private func playHaptic(_ typeStr: String) {
+        let type = HapticType(rawValue: typeStr.lowercased()) ?? .none
+        switch type {
+        case .none, .noneAlt:
+            break
+        case .light:
+            NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+        case .strong:
+            NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
+        case .double:
+            NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+                NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
+            }
+        }
+    }
+}
+
+enum HapticType: String {
+    case none = "non"
+    case noneAlt = "none"
+    case light
+    case double
+    case strong
+}

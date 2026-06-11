@@ -73,3 +73,11 @@
 # [[custom]]
 # key = "shift+return"
 # command = "open -n -a Terminal"
+
+# trackpad swipe support for switching to prev/next workspaces
+# [trackpad]
+# enable = false
+# fingers = 3 # 3 or 4
+# haptic_type = "non" # "non", "light", "double", "strong"
+# sensitivity = 1.0 # higher value = more sensitive
+# allow_multiple = false # allow multiple workspace switches per continuous swipe gesture
