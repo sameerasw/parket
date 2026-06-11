@@ -132,6 +132,9 @@ package struct Config {
     package var gap: CGFloat = 0
     package var hideInactiveApps: Bool = false
     package var inactiveWindowPosition: InactiveWindowPosition = .left
+    package var enableCorners: Bool = false
+    package var cornerRadius: CGFloat = 0
+    package var enableDynamicMenubar: Bool = false
     package var modifier: CGEventFlags = .maskAlternate
     package var customBindings: [Binding] = [
         Binding(key: Key.return, shift: true, command: "open -n -a Terminal"),
@@ -190,6 +193,20 @@ package struct Config {
 
         if let hideInactive = toml["hide_inactive_apps"] as? Bool {
             config.hideInactiveApps = hideInactive
+        }
+
+        if let enableCorners = toml["enable_corners"] as? Bool {
+            config.enableCorners = enableCorners
+        }
+
+        if let cornerRadiusVal = toml["corner_radius"] as? Double {
+            config.cornerRadius = CGFloat(cornerRadiusVal)
+        } else if let cornerRadiusVal = toml["corner_radius"] as? Int {
+            config.cornerRadius = CGFloat(cornerRadiusVal)
+        }
+
+        if let enableDynamic = toml["enable_dynamic_menubar"] as? Bool {
+            config.enableDynamicMenubar = enableDynamic
         }
 
         if let posStr = toml["inactive_window_position"] as? String {

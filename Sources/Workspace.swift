@@ -40,6 +40,8 @@ package final class WorkspaceManager {
             monitor.retile()
         }
         syncApplicationVisibility()
+        CornerMaskManager.shared.configure()
+        MenuBarManager.shared.configure()
         StatusBar.shared.update()
     }
 
@@ -415,6 +417,8 @@ package final class WorkspaceManager {
             monitor.resizeWorkspaces(to: count)
             monitor.retile()
         }
+        CornerMaskManager.shared.configure()
+        MenuBarManager.shared.configure()
         StatusBar.shared.update()
         fputs("parket: config reloaded\n", stderr)
     }
