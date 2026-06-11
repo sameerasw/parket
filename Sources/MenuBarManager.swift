@@ -5,6 +5,7 @@ package final class MenuBarManager {
     package static let shared = MenuBarManager()
 
     private var isEnabled: Bool = false
+    private var isAutoHideActive: Bool = false
 
     private init() {
         NotificationCenter.default.addObserver(
@@ -24,6 +25,40 @@ package final class MenuBarManager {
         } else {
             setMenuBarAutoHide(enabled: false)
         }
+    }
+
+    package func toggleMenuBarAutoHide() {
+        let scriptSource = """
+        if application "System Events" is not running then
+            launch application "System Events"
+        end if
+        tell application "System Events"
+            set autohide menu bar of dock preferences to not (autohide menu bar of dock preferences)
+        end tell
+        """
+        
+        if let script = NSAppleScript(source: scriptSource) {
+            var error: NSDictionary?
+            script.executeAndReturnError(&error)
+            if error != nil {
+                let osascript = "tell application \"System Events\" to set autohide menu bar of dock preferences to not (autohide menu bar of dock preferences)"
+                let fallbackProc = Process()
+                fallbackProc.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+                fallbackProc.arguments = ["-e", osascript]
+                try? fallbackProc.run()
+            }
+        }
+    }
+
+    package func toggleDynamicMenubar() -> Bool {
+        isEnabled.toggle()
+        Config.shared.enableDynamicMenubar = isEnabled
+        if isEnabled {
+            evaluateState()
+        } else {
+            setMenuBarAutoHide(enabled: false)
+        }
+        return isEnabled
     }
 
     @objc private func evaluateState() {

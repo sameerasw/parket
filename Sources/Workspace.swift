@@ -234,6 +234,16 @@ package final class WorkspaceManager {
         HUDManager.shared.show(text: "Window: \(status)", systemImage: icon, type: .other)
     }
 
+    func toggleMenuBarAutoHide() {
+        MenuBarManager.shared.toggleMenuBarAutoHide()
+        HUDManager.shared.show(text: "Toggle Menu Bar", systemImage: "menubar.rectangle", type: .other)
+    }
+
+    func toggleDynamicMenuBar() {
+        let isDynamic = MenuBarManager.shared.toggleDynamicMenubar()
+        HUDManager.shared.show(text: "Dynamic Menu Bar", systemImage: "menubar.dock.rectangle", type: .other, isOn: isDynamic)
+    }
+
     func focusMonitor(offset: Int) {
         guard monitors.count > 1 else { return }
         focusedMonitor.saveFocusedIndex()

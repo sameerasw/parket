@@ -16,7 +16,7 @@ package final class HUDManager {
 
     private init() {}
 
-    package func show(text: String, systemImage: String, type: HUDActionType, slideOffset: CGFloat = 0) {
+    package func show(text: String, systemImage: String, type: HUDActionType, slideOffset: CGFloat = 0, isOn: Bool? = nil) {
         let config = Config.shared
         guard config.hudEnabled else { return }
 
@@ -37,9 +37,9 @@ package final class HUDManager {
             let screen = WorkspaceManager.shared.focusedMonitor.screen
             
             if hudWindow == nil {
-                hudWindow = HUDWindow(screen: screen, text: text, systemImage: systemImage, slideOffset: slideOffset)
+                hudWindow = HUDWindow(screen: screen, text: text, systemImage: systemImage, slideOffset: slideOffset, isOn: isOn)
             } else {
-                hudWindow?.updateContent(text: text, systemImage: systemImage, slideOffset: slideOffset)
+                hudWindow?.updateContent(text: text, systemImage: systemImage, slideOffset: slideOffset, isOn: isOn)
                 hudWindow?.updatePosition(screen: screen)
             }
 
@@ -60,11 +60,13 @@ private final class HUDWindow: NSWindow {
     private var currentText: String
     private var currentSystemImage: String
     private var currentSlideOffset: CGFloat
+    private var currentIsOn: Bool?
 
-    init(screen: NSScreen, text: String, systemImage: String, slideOffset: CGFloat) {
+    init(screen: NSScreen, text: String, systemImage: String, slideOffset: CGFloat, isOn: Bool?) {
         self.currentText = text
         self.currentSystemImage = systemImage
         self.currentSlideOffset = slideOffset
+        self.currentIsOn = isOn
         
         let config = Config.shared
         let screenFrame = screen.frame
@@ -97,15 +99,16 @@ private final class HUDWindow: NSWindow {
         orderFrontRegardless()
     }
 
-    func updateContent(text: String, systemImage: String, slideOffset: CGFloat) {
+    func updateContent(text: String, systemImage: String, slideOffset: CGFloat, isOn: Bool?) {
         self.currentText = text
         self.currentSystemImage = systemImage
         self.currentSlideOffset = slideOffset
+        self.currentIsOn = isOn
         updateContentView()
     }
 
     private func updateContentView() {
-        let hudView = HUDView(text: currentText, systemImage: currentSystemImage, slideOffset: currentSlideOffset)
+        let hudView = HUDView(text: currentText, systemImage: currentSystemImage, slideOffset: currentSlideOffset, isOn: currentIsOn)
             .id(UUID())
         let anyView = AnyView(hudView)
         if hostingView == nil {
@@ -149,6 +152,7 @@ private struct HUDView: View {
     let text: String
     let systemImage: String
     let slideOffset: CGFloat
+    let isOn: Bool?
     @State private var animOffset: CGFloat = 0
     @State private var scale: CGFloat = 1.0
     @State private var opacity: Double = 0
@@ -158,18 +162,21 @@ private struct HUDView: View {
             HStack(spacing: 14) {
                 Image(systemName: systemImage)
                     .font(.system(size: 16, weight: .semibold))
-                    // .foregroundStyle(.primary)
                     .foregroundColor(.accentColor)
                 
                 Text(text)
                     .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(.primary)
                 
-                // Spacer()
+                if let isOn = isOn {
+                    Toggle("", isOn: SwiftUI.Binding.constant(isOn))
+                        .toggleStyle(.switch)
+                        // .disabled(true)
+                        .controlSize(.small)
+                }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            // .frame(width: 250, height: 50)
             .applyGlassViewIfAvailable(cornerRadius: 24)
             .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
             .scaleEffect(scale)

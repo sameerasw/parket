@@ -146,6 +146,14 @@ package final class Hotkeys {
             DispatchQueue.main.async { WorkspaceManager.shared.reloadConfig() }
             return nil
         }
+        if keyCode == b.toggleMenubar.key && hasShift == b.toggleMenubar.shift {
+            DispatchQueue.main.async { WorkspaceManager.shared.toggleMenuBarAutoHide() }
+            return nil
+        }
+        if keyCode == b.toggleDynamicMenubar.key && hasShift == b.toggleDynamicMenubar.shift {
+            DispatchQueue.main.async { WorkspaceManager.shared.toggleDynamicMenuBar() }
+            return nil
+        }
 
         return Unmanaged.passRetained(event)
     }
