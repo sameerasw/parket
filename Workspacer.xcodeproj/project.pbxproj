@@ -272,7 +272,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.6;
 				MARKETING_VERSION = 2.0;
 				OTHER_SWIFT_FLAGS = "-package-name Workspacer";
 				PRODUCT_BUNDLE_IDENTIFIER = com.sameerasw.workspacer;
@@ -311,7 +311,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MACOSX_DEPLOYMENT_TARGET = 26.6;
 				MARKETING_VERSION = 2.0;
 				OTHER_SWIFT_FLAGS = "-package-name Workspacer";
 				PRODUCT_BUNDLE_IDENTIFIER = com.sameerasw.workspacer;

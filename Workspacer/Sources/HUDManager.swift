@@ -227,6 +227,9 @@ private struct HUDView: View {
                 // Keep highlighted index strictly to the active workspace index so it doesn't prematurely switch
                 let highlightedIndex = activeIndex
                 
+                // Determine targetIndex (next workspace in swipe direction)
+                let targetIndex = swipeProgress < 0 ? activeIndex + 1 : activeIndex - 1
+                
                 // Offset shifts workspace list based on current active workspace + swipe progress
                 let totalOffset = ((CGFloat(count) - 1.0) / 2.0 - CGFloat(activeIndex) + swipeProgress) * itemWidth
 
@@ -235,24 +238,50 @@ private struct HUDView: View {
                         HStack(spacing: 0) {
                             ForEach(0..<count, id: \.self) { index in
                                 let isActive = (index == highlightedIndex)
-                                Text(workspaceNames[index])
-                                    .font(.system(size: 13, weight: isActive ? .bold : .medium, design: .rounded))
-                                    .foregroundColor(isActive ? .white : .primary.opacity(0.65))
-                                    .frame(width: itemWidth - 10, height: 36)
-                                    .background(
-                                        ZStack {
-                                            if isActive {
+                                let isTarget = (index == targetIndex)
+                                let progressToTarget = isTarget ? min(1.0, max(0.0, abs(swipeProgress))) : 0.0
+                                
+                                Group {
+                                    if isActive {
+                                        Text(workspaceNames[index])
+                                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                                            .foregroundColor(.white)
+                                            .frame(width: itemWidth - 10, height: 36)
+                                            .background(
                                                 RoundedRectangle(cornerRadius: 16)
                                                     .fill(Color.accentColor)
                                                     .matchedGeometryEffect(id: "activePill", in: namespace)
-                                            } else {
+                                            )
+                                            .applyGlassViewIfAvailable(cornerRadius: 24)
+                                            .scaleEffect(1.16)
+                                    } else {
+                                        ZStack {
+                                            Text(workspaceNames[index])
+                                                .font(.system(size: 13, weight: .medium, design: .rounded))
+                                                .foregroundColor(.primary.opacity(0.65))
+                                                .opacity(1.0 - Double(progressToTarget))
+                                            
+                                            Text(workspaceNames[index])
+                                                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                                                .foregroundColor(Color.accentColor.opacity(0.95))
+                                                .opacity(Double(progressToTarget))
+                                        }
+                                        .frame(width: itemWidth - 10, height: 36)
+                                        .background(
+                                            ZStack {
                                                 RoundedRectangle(cornerRadius: 16)
                                                     .fill(Color.primary.opacity(0.04))
+                                                
+                                                RoundedRectangle(cornerRadius: 16)
+                                                    .fill(Color.accentColor.opacity(0.12 * Double(progressToTarget)))
                                             }
-                                        }
-                                    )
-                                    .scaleEffect(isActive ? 1.08 : 1.0)
-                                    .frame(width: itemWidth) // Keeps fixed item slots
+                                        )
+
+                                          .applyGlassViewIfAvailable(cornerRadius: 24)
+                                        .scaleEffect(1.0 + 0.03 * progressToTarget)
+                                    }
+                                }
+                                .frame(width: itemWidth) // Keeps fixed item slots
                             }
                         }
                         .offset(x: totalOffset)
@@ -274,8 +303,8 @@ private struct HUDView: View {
                     )
                 }
                 .frame(width: 320, height: 50)
-                .applyGlassViewIfAvailable(cornerRadius: 24)
-                .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
+//                .applyGlassViewIfAvailable(cornerRadius: 24)
+//                .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
             } else {
                 HStack(spacing: 14) {
                     Image(systemName: systemImage)

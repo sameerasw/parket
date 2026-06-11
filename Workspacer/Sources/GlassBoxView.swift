@@ -69,7 +69,7 @@ extension View {
     package func segmentStyle(cornerRadius: CGFloat = 20) -> some View {
         self.applyGlassViewIfAvailable(cornerRadius: cornerRadius)
             .contentShape(Rectangle())
-            .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
+//            .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
     }
     
     package func staggeredEntrance(index: Int, isVisible: Bool) -> some View {
