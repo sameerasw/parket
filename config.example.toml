@@ -66,6 +66,8 @@
 # reload_config = "shift+r"
 # toggle_menubar = "m"
 # toggle_dynamic_menubar = "shift+m"
+# shrink_window = "minus"
+# expand_window = "equal"
 
 # custom key bindings that run shell commands
 # [[custom]]

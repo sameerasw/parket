@@ -154,6 +154,14 @@ package final class Hotkeys {
             DispatchQueue.main.async { WorkspaceManager.shared.toggleDynamicMenuBar() }
             return nil
         }
+        if keyCode == b.shrinkWindow.key && hasShift == b.shrinkWindow.shift {
+            DispatchQueue.main.async { WorkspaceManager.shared.adjustActiveWindowSize(direction: -0.05) }
+            return nil
+        }
+        if keyCode == b.expandWindow.key && hasShift == b.expandWindow.shift {
+            DispatchQueue.main.async { WorkspaceManager.shared.adjustActiveWindowSize(direction: 0.05) }
+            return nil
+        }
 
         return Unmanaged.passRetained(event)
     }

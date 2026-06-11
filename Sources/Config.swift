@@ -124,6 +124,8 @@ package struct BuiltinBindings {
     var reloadConfig: (key: UInt16, shift: Bool) = (Key.r, true)
     var toggleMenubar: (key: UInt16, shift: Bool) = (Key.m, false)
     var toggleDynamicMenubar: (key: UInt16, shift: Bool) = (Key.m, true)
+    var shrinkWindow: (key: UInt16, shift: Bool) = (Key.minus, false)
+    var expandWindow: (key: UInt16, shift: Bool) = (Key.equal, false)
 }
 
 package struct Config {
@@ -306,6 +308,8 @@ package struct Config {
             applyBinding(bindings, "reload_config", to: &config.bindings.reloadConfig)
             applyBinding(bindings, "toggle_menubar", to: &config.bindings.toggleMenubar)
             applyBinding(bindings, "toggle_dynamic_menubar", to: &config.bindings.toggleDynamicMenubar)
+            applyBinding(bindings, "shrink_window", to: &config.bindings.shrinkWindow)
+            applyBinding(bindings, "expand_window", to: &config.bindings.expandWindow)
         }
 
         if let customs = toml["custom"] as? [[String: Any]] {

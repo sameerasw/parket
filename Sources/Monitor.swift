@@ -219,6 +219,56 @@ package final class Monitor {
         workspaces[active][0].focus()
     }
 
+    func adjustActiveWindowSize(direction: CGFloat) {
+        guard layouts[active] == .tile else { return }
+        let windows = workspaces[active]
+        guard windows.count > 1 else { return }
+        
+        guard let focused = WindowManager.focusedWindow(),
+              let focusedIndex = windows.firstIndex(of: focused)
+        else { return }
+        
+        if focusedIndex == 0 {
+            let current = masterRatios[active]
+            let newRatio = min(max(current + direction, 0.1), 0.9)
+            masterRatios[active] = newRatio
+            retile()
+        } else {
+            let stackIndex = focusedIndex - 1
+            let count = windows.count - 1
+            
+            if stackRatios[active].count != count {
+                stackRatios[active] = Array(repeating: 1.0 / CGFloat(count), count: count)
+            }
+            
+            var ratios = stackRatios[active]
+            let currentRatio = ratios[stackIndex]
+            
+            let newRatio = min(max(currentRatio + direction, 0.05), 0.95)
+            let diff = newRatio - currentRatio
+            
+            let otherCount = count - 1
+            if otherCount > 0 {
+                let adjustAmount = diff / CGFloat(otherCount)
+                for i in 0..<count {
+                    if i == stackIndex {
+                        ratios[i] = newRatio
+                    } else {
+                        ratios[i] = min(max(ratios[i] - adjustAmount, 0.05), 0.95)
+                    }
+                }
+                
+                let sum = ratios.reduce(0, +)
+                if sum > 0 {
+                    ratios = ratios.map { $0 / sum }
+                }
+                
+                stackRatios[active] = ratios
+                retile()
+            }
+        }
+    }
+
     func toggleLayout() {
         layouts[active] = layouts[active] == .tile ? .monocle : .tile
         retile()

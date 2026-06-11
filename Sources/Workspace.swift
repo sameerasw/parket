@@ -244,6 +244,10 @@ package final class WorkspaceManager {
         HUDManager.shared.show(text: "Dynamic Menu Bar", systemImage: "menubar.dock.rectangle", type: .other, isOn: isDynamic)
     }
 
+    func adjustActiveWindowSize(direction: CGFloat) {
+        focusedMonitor.adjustActiveWindowSize(direction: direction)
+    }
+
     func focusMonitor(offset: Int) {
         guard monitors.count > 1 else { return }
         focusedMonitor.saveFocusedIndex()
