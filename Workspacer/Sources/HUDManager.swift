@@ -253,7 +253,7 @@ private struct HUDView: View {
                                                     .matchedGeometryEffect(id: "activePill", in: namespace)
                                             )
                                             .applyGlassViewIfAvailable(cornerRadius: 24)
-                                            .scaleEffect(1.16)
+                                            .scaleEffect(1.1)
                                     } else {
                                         ZStack {
                                             Text(workspaceNames[index])
@@ -263,7 +263,7 @@ private struct HUDView: View {
                                             
                                             Text(workspaceNames[index])
                                                 .font(.system(size: 13, weight: .semibold, design: .rounded))
-                                                .foregroundColor(Color.accentColor.opacity(0.95))
+//                                                .foregroundColor(Color.accentColor.opacity(0.95))
                                                 .opacity(Double(progressToTarget))
                                         }
                                         .frame(width: itemWidth - 10, height: 36)
@@ -273,7 +273,7 @@ private struct HUDView: View {
                                                     .fill(Color.primary.opacity(0.04))
                                                 
                                                 RoundedRectangle(cornerRadius: 16)
-                                                    .fill(Color.accentColor.opacity(0.12 * Double(progressToTarget)))
+                                                    .fill(Color.accentColor.opacity(0.2 * Double(progressToTarget)))
                                             }
                                         )
 
@@ -303,8 +303,8 @@ private struct HUDView: View {
                     )
                 }
                 .frame(width: 320, height: 50)
-//                .applyGlassViewIfAvailable(cornerRadius: 24)
-//                .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
+                .applyGlassViewIfAvailable(cornerRadius: 24)
+                .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
             } else {
                 HStack(spacing: 14) {
                     Image(systemName: systemImage)

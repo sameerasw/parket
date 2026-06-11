@@ -19,6 +19,9 @@
 # hide applications that are not on the active workspace
 # hide_inactive_apps = false
 
+# resize inactive windows to 1x1 size when moving them off-screen (disabling this leaves them at original size)
+# resize_on_hide = true
+
 # screen side or corner to keep inactive app windows: "left", "right", "top", "bottom", "top-left", "top-right", "bottom-left", "bottom-right"
 # inactive_window_position = "left"
 

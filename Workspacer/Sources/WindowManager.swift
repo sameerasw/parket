@@ -104,7 +104,9 @@ struct TrackedWindow: Equatable {
     }
 
     func hideOffscreen(_ screen: CGRect) {
-        setSize(CGSize(width: 1, height: 1))
+        if Config.shared.resizeOnHide {
+            setSize(CGSize(width: 1, height: 1))
+        }
         let screens = NSScreen.screens
         let rect = screen
         
