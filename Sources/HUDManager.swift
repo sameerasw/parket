@@ -157,20 +157,21 @@ private struct HUDView: View {
         ZStack {
             HStack(spacing: 14) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.primary)
+                    .font(.system(size: 16, weight: .semibold))
+                    // .foregroundStyle(.primary)
+                    .foregroundColor(.accentColor)
                 
                 Text(text)
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
                     .foregroundStyle(.primary)
                 
-                Spacer()
+                // Spacer()
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .frame(width: 300, height: 60)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            // .frame(width: 250, height: 50)
             .applyGlassViewIfAvailable(cornerRadius: 24)
-            .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
+            .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
             .scaleEffect(scale)
             .offset(x: animOffset)
             .opacity(opacity)
