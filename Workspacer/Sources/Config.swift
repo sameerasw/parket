@@ -138,6 +138,7 @@ package struct Config {
     package var hideInactiveApps: Bool = false
     package var resizeOnHide: Bool = true
     package var noPaddingForSingleWindow: Bool = false
+    package var workspaceLoopEnabled: Bool = false
     package var inactiveWindowPosition: InactiveWindowPosition = .left
     package var enableCorners: Bool = false
     package var cornerRadius: CGFloat = 0
@@ -244,6 +245,10 @@ package struct Config {
 
         if let noPaddingSingle = toml["no_padding_for_single_window"] as? Bool {
             config.noPaddingForSingleWindow = noPaddingSingle
+        }
+
+        if let loopEnabled = toml["workspace_loop"] as? Bool {
+            config.workspaceLoopEnabled = loopEnabled
         }
 
         if let enableCorners = toml["enable_corners"] as? Bool {

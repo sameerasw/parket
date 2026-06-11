@@ -73,6 +73,7 @@ package final class WorkspaceManager {
     func switchToPrev(isPersistent: Bool = false) {
         let current = focusedMonitor.active
         let count = Config.shared.workspaceCount
+        guard Config.shared.workspaceLoopEnabled || current > 0 else { return }
         let target = (current - 1 + count) % count
         switchTo(target, isPersistent: isPersistent)
     }
@@ -80,6 +81,7 @@ package final class WorkspaceManager {
     func switchToNext(isPersistent: Bool = false) {
         let current = focusedMonitor.active
         let count = Config.shared.workspaceCount
+        guard Config.shared.workspaceLoopEnabled || current < count - 1 else { return }
         let target = (current + 1) % count
         switchTo(target, isPersistent: isPersistent)
     }

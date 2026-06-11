@@ -25,6 +25,9 @@
 # disable padding and gaps when there is only one window on the workspace
 # no_padding_for_single_window = false
 
+# allow workspace switching to loop from last to first (and vice versa)
+# workspace_loop = false
+
 # screen side or corner to keep inactive app windows: "left", "right", "top", "bottom", "top-left", "top-right", "bottom-left", "bottom-right"
 # inactive_window_position = "left"
 

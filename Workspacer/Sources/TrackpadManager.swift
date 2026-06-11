@@ -204,7 +204,24 @@ package final class TrackpadManager {
                     if hasShownHUD || abs(diff) >= noiseThreshold {
                         let activeIndex = WorkspaceManager.shared.focusedMonitor.active
                         let name = config.workspaceName(for: activeIndex)
-                        let progress = CGFloat(diff / threshold)
+                        var progress = CGFloat(diff / threshold)
+
+                        // Rubber-band at boundaries: asymptotic formula so it drifts a little
+                        // but smoothly resists further movement without ever jumping back
+                        if !config.workspaceLoopEnabled {
+                            let count = config.workspaceCount
+                            let atStart = activeIndex <= 0
+                            let atEnd   = activeIndex >= count - 1
+                            let maxOverscroll: CGFloat = 0.28
+                            if atStart && progress > 0 {
+                                let x = progress
+                                progress = maxOverscroll * (x / (x + 1))
+                            } else if atEnd && progress < 0 {
+                                let x = -progress
+                                progress = -maxOverscroll * (x / (x + 1))
+                            }
+                        }
+
                         DispatchQueue.main.async {
                             HUDManager.shared.show(text: name, systemImage: "desktopcomputer", type: .workspaceSwitch, isPersistent: true, swipeProgress: progress, isInteractive: true)
                         }
@@ -226,7 +243,15 @@ package final class TrackpadManager {
                     let direction = diff < 0 ? -1 : 1
                     let isOppositeDirection = (direction != lastTriggeredDirection)
 
-                    if !hasTriggered || config.trackpadSwipeMultiple || isOppositeDirection {
+                    // Check boundary: if loop is off and we're already at the edge, skip entirely
+                    let activeIndex = WorkspaceManager.shared.focusedMonitor.active
+                    let count = config.workspaceCount
+                    let atBoundary = !config.workspaceLoopEnabled && (
+                        (direction < 0 && activeIndex >= count - 1) ||
+                        (direction > 0 && activeIndex <= 0)
+                    )
+
+                    if !atBoundary && (!hasTriggered || config.trackpadSwipeMultiple || isOppositeDirection) {
                         // Play main haptic feedback immediately
                         self.playHaptic(config.trackpadSwipeHaptic)
 
