@@ -45,7 +45,7 @@ package final class WorkspaceManager {
         StatusBar.shared.update()
     }
 
-    func switchTo(_ index: Int) {
+    func switchTo(_ index: Int, isPersistent: Bool = false) {
         let prevIndex = focusedMonitor.active
         for monitor in monitors {
             monitor.switchTo(index)
@@ -61,7 +61,7 @@ package final class WorkspaceManager {
         }
         
         let name = Config.shared.workspaceName(for: index)
-        HUDManager.shared.show(text: name, systemImage: "desktopcomputer", type: .workspaceSwitch, slideOffset: slideOffset)
+        HUDManager.shared.show(text: name, systemImage: "desktopcomputer", type: .workspaceSwitch, slideOffset: slideOffset, isPersistent: isPersistent)
     }
 
     func switchToLast() {
@@ -70,18 +70,18 @@ package final class WorkspaceManager {
         switchTo(target)
     }
 
-    func switchToPrev() {
+    func switchToPrev(isPersistent: Bool = false) {
         let current = focusedMonitor.active
         let count = Config.shared.workspaceCount
         let target = (current - 1 + count) % count
-        switchTo(target)
+        switchTo(target, isPersistent: isPersistent)
     }
 
-    func switchToNext() {
+    func switchToNext(isPersistent: Bool = false) {
         let current = focusedMonitor.active
         let count = Config.shared.workspaceCount
         let target = (current + 1) % count
-        switchTo(target)
+        switchTo(target, isPersistent: isPersistent)
     }
 
     func moveActiveWindowToPrev() {

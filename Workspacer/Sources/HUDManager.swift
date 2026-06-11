@@ -13,10 +13,11 @@ package final class HUDManager {
 
     private var hudWindow: HUDWindow?
     private var hideTimer: Timer?
+    private var isPersistent = false
 
     private init() {}
 
-    package func show(text: String, systemImage: String, type: HUDActionType, slideOffset: CGFloat = 0, isOn: Bool? = nil) {
+    package func show(text: String, systemImage: String, type: HUDActionType, slideOffset: CGFloat = 0, isOn: Bool? = nil, isPersistent: Bool = false) {
         let config = Config.shared
         guard config.hudEnabled else { return }
 
@@ -32,6 +33,7 @@ package final class HUDManager {
         }
 
         hideTimer?.invalidate()
+        self.isPersistent = isPersistent
 
         DispatchQueue.main.async { [self] in
             let screen = WorkspaceManager.shared.focusedMonitor.screen
@@ -45,6 +47,25 @@ package final class HUDManager {
 
             hudWindow?.fadeIn()
 
+            if !isPersistent {
+                hideTimer = Timer.scheduledTimer(withTimeInterval: config.hudDuration, repeats: false) { [weak self] _ in
+                    self?.hudWindow?.fadeOut {
+                        self?.hudWindow?.close()
+                        self?.hudWindow = nil
+                    }
+                }
+            }
+        }
+    }
+
+    package func releasePersistentHUD() {
+        guard isPersistent else { return }
+        isPersistent = false
+
+        let config = Config.shared
+        hideTimer?.invalidate()
+
+        DispatchQueue.main.async { [self] in
             hideTimer = Timer.scheduledTimer(withTimeInterval: config.hudDuration, repeats: false) { [weak self] _ in
                 self?.hudWindow?.fadeOut {
                     self?.hudWindow?.close()

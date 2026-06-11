@@ -58,6 +58,7 @@ package final class TrackpadManager {
     private var hasTriggered = false
     private var lastRumbleX: Float = 0.0
     private var lastTriggeredDirection: Int = 0
+    private var hasShownHUD = false
 
     private init() {}
 
@@ -190,11 +191,25 @@ package final class TrackpadManager {
                 hasTriggered = false
                 lastRumbleX = avgX
                 lastTriggeredDirection = 0
+                hasShownHUD = false
             } else if currentIds == sessionFingerIds {
                 // Ongoing swipe gesture
                 let diff = avgX - startingAverageX
                 let baseThreshold: Float = 0.15
                 let threshold = baseThreshold / Float(config.trackpadSwipeSensitivity)
+
+                // Show HUD overlay persistently as soon as swipe movement starts
+                if config.hudEnabled && config.hudOnWorkspaceSwitch && !hasShownHUD {
+                    let noiseThreshold = threshold * 0.05
+                    if abs(diff) >= noiseThreshold {
+                        let activeIndex = WorkspaceManager.shared.focusedMonitor.active
+                        let name = config.workspaceName(for: activeIndex)
+                        DispatchQueue.main.async {
+                            HUDManager.shared.show(text: name, systemImage: "desktopcomputer", type: .workspaceSwitch, isPersistent: true)
+                        }
+                        hasShownHUD = true
+                    }
+                }
 
                 // Subtle haptic rumble triggered based strictly on finger travel distance (displacement)
                 if config.trackpadSwipeRumble && !hasTriggered {
@@ -217,12 +232,12 @@ package final class TrackpadManager {
                         if direction < 0 {
                             // Swipe left (fingers move left) -> switch next
                             DispatchQueue.main.async {
-                                WorkspaceManager.shared.switchToNext()
+                                WorkspaceManager.shared.switchToNext(isPersistent: true)
                             }
                         } else {
                             // Swipe right (fingers move right) -> switch prev
                             DispatchQueue.main.async {
-                                WorkspaceManager.shared.switchToPrev()
+                                WorkspaceManager.shared.switchToPrev(isPersistent: true)
                             }
                         }
 
@@ -240,6 +255,7 @@ package final class TrackpadManager {
                 hasTriggered = false
                 lastRumbleX = avgX
                 lastTriggeredDirection = 0
+                hasShownHUD = false
             }
         } else {
             // Finger count doesn't match target, reset session if all fingers lifted
@@ -248,6 +264,8 @@ package final class TrackpadManager {
                 hasTriggered = false
                 lastRumbleX = 0.0
                 lastTriggeredDirection = 0
+                hasShownHUD = false
+                HUDManager.shared.releasePersistentHUD()
             }
         }
     }
