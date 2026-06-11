@@ -119,6 +119,9 @@ package final class Monitor {
     @discardableResult
     func addWindow(_ window: TrackedWindow) -> WindowUpdate {
         let existing = updateExistingWindow(window)
+        if existing == .replaced && workspaces[active].contains(window) {
+            scheduleRetile()
+        }
         guard existing == .missing else { return existing }
         workspaces[active].insert(window, at: 0)
         scheduleRetile()
@@ -128,6 +131,9 @@ package final class Monitor {
     @discardableResult
     func addWindow(_ window: TrackedWindow, to workspaceIndex: Int) -> WindowUpdate {
         let existing = updateExistingWindow(window)
+        if existing == .replaced && workspaces[active].contains(window) {
+            scheduleRetile()
+        }
         guard existing == .missing else { return existing }
         guard workspaceIndex >= 0, workspaceIndex < Config.shared.workspaceCount else {
             return addWindow(window)

@@ -60,20 +60,34 @@ package final class WindowObserver {
         trySyncWindows(pid: pid, attempt: 0)
     }
 
-    private func trySyncWindows(pid: pid_t, attempt: Int) {
+    private func trySyncWindows(pid: pid_t, targetElement: AXUIElement? = nil, attempt: Int) {
         guard let windows = WindowManager.windows(pid: pid), !windows.isEmpty else {
-            retrySyncWindows(pid: pid, attempt: attempt)
+            retrySyncWindows(pid: pid, targetElement: targetElement, attempt: attempt)
             return
+        }
+
+        if let target = targetElement {
+            let containsTarget = windows.contains { $0.containsElement(target) }
+            if !containsTarget && attempt < Self.maxRetries {
+                retrySyncWindows(pid: pid, targetElement: target, attempt: attempt)
+                return
+            }
         }
 
         WorkspaceManager.shared.syncWindows(pid: pid, windows: windows)
         observeWindows(windows, pid: pid)
     }
 
-    private func retrySyncWindows(pid: pid_t, attempt: Int) {
-        guard attempt < Self.maxRetries else { return }
+    private func retrySyncWindows(pid: pid_t, targetElement: AXUIElement?, attempt: Int) {
+        guard attempt < Self.maxRetries else {
+            if let windows = WindowManager.windows(pid: pid) {
+                WorkspaceManager.shared.syncWindows(pid: pid, windows: windows)
+                observeWindows(windows, pid: pid)
+            }
+            return
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.retryInterval) {
-            self.trySyncWindows(pid: pid, attempt: attempt + 1)
+            self.trySyncWindows(pid: pid, targetElement: targetElement, attempt: attempt + 1)
         }
     }
 
@@ -99,7 +113,7 @@ package final class WindowObserver {
         if notif == kAXWindowCreatedNotification {
             var pidValue: pid_t = 0
             AXUIElementGetPid(element, &pidValue)
-            WindowObserver.shared.trySyncWindows(pid: pidValue, attempt: 0)
+            WindowObserver.shared.trySyncWindows(pid: pidValue, targetElement: element, attempt: 0)
         } else if notif == kAXUIElementDestroyedNotification {
             var pidValue: pid_t = 0
             AXUIElementGetPid(element, &pidValue)
