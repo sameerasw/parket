@@ -17,7 +17,7 @@ package final class HUDManager {
 
     private init() {}
 
-    package func show(text: String, systemImage: String, type: HUDActionType, slideOffset: CGFloat = 0, isOn: Bool? = nil, isPersistent: Bool = false, swipeProgress: CGFloat = 0) {
+    package func show(text: String, systemImage: String, type: HUDActionType, slideOffset: CGFloat = 0, isOn: Bool? = nil, isPersistent: Bool = false, swipeProgress: CGFloat = 0, isInteractive: Bool = false) {
         let config = Config.shared
         guard config.hudEnabled else { return }
 
@@ -39,9 +39,9 @@ package final class HUDManager {
             let screen = WorkspaceManager.shared.focusedMonitor.screen
             
             if hudWindow == nil {
-                hudWindow = HUDWindow(screen: screen, text: text, systemImage: systemImage, slideOffset: slideOffset, isOn: isOn, type: type, swipeProgress: swipeProgress)
+                hudWindow = HUDWindow(screen: screen, text: text, systemImage: systemImage, slideOffset: slideOffset, isOn: isOn, type: type, swipeProgress: swipeProgress, isInteractive: isInteractive)
             } else {
-                hudWindow?.updateContent(text: text, systemImage: systemImage, slideOffset: slideOffset, isOn: isOn, type: type, swipeProgress: swipeProgress)
+                hudWindow?.updateContent(text: text, systemImage: systemImage, slideOffset: slideOffset, isOn: isOn, type: type, swipeProgress: swipeProgress, isInteractive: isInteractive)
                 hudWindow?.updatePosition(screen: screen)
             }
 
@@ -84,15 +84,17 @@ private final class HUDWindow: NSWindow {
     private var currentIsOn: Bool?
     private var currentType: HUDActionType
     private var currentSwipeProgress: CGFloat
+    private var currentIsInteractive: Bool
     private var isFadingIn = false
 
-    init(screen: NSScreen, text: String, systemImage: String, slideOffset: CGFloat, isOn: Bool?, type: HUDActionType, swipeProgress: CGFloat) {
+    init(screen: NSScreen, text: String, systemImage: String, slideOffset: CGFloat, isOn: Bool?, type: HUDActionType, swipeProgress: CGFloat, isInteractive: Bool) {
         self.currentText = text
         self.currentSystemImage = systemImage
         self.currentSlideOffset = slideOffset
         self.currentIsOn = isOn
         self.currentType = type
         self.currentSwipeProgress = swipeProgress
+        self.currentIsInteractive = isInteractive
         
         let config = Config.shared
         let screenFrame = screen.frame
@@ -125,13 +127,14 @@ private final class HUDWindow: NSWindow {
         orderFrontRegardless()
     }
 
-    func updateContent(text: String, systemImage: String, slideOffset: CGFloat, isOn: Bool?, type: HUDActionType, swipeProgress: CGFloat) {
+    func updateContent(text: String, systemImage: String, slideOffset: CGFloat, isOn: Bool?, type: HUDActionType, swipeProgress: CGFloat, isInteractive: Bool) {
         self.currentText = text
         self.currentSystemImage = systemImage
         self.currentSlideOffset = slideOffset
         self.currentIsOn = isOn
         self.currentType = type
         self.currentSwipeProgress = swipeProgress
+        self.currentIsInteractive = isInteractive
         updateContentView()
     }
 
@@ -151,7 +154,8 @@ private final class HUDWindow: NSWindow {
             isOn: currentIsOn,
             activeIndex: activeIndex,
             workspaceNames: names,
-            swipeProgress: currentSwipeProgress
+            swipeProgress: currentSwipeProgress,
+            isInteractive: currentIsInteractive
         )
         let anyView = AnyView(hudView)
         if hostingView == nil {
@@ -210,6 +214,7 @@ private struct HUDView: View {
     let activeIndex: Int
     let workspaceNames: [String]
     let swipeProgress: CGFloat
+    let isInteractive: Bool
     
     @Namespace private var namespace
 
@@ -252,7 +257,7 @@ private struct HUDView: View {
                         }
                         .offset(x: totalOffset)
                         .frame(width: itemWidth * CGFloat(count))
-                        .animation(.interactiveSpring(response: 0.2, dampingFraction: 0.8), value: highlightedIndex)
+                        .animation(isInteractive ? nil : .spring(response: 0.3, dampingFraction: 0.7), value: totalOffset)
                     }
                     .frame(width: 320, height: 50)
                     .mask(

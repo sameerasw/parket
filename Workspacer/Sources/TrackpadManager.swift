@@ -206,7 +206,7 @@ package final class TrackpadManager {
                         let name = config.workspaceName(for: activeIndex)
                         let progress = CGFloat(diff / threshold)
                         DispatchQueue.main.async {
-                            HUDManager.shared.show(text: name, systemImage: "desktopcomputer", type: .workspaceSwitch, isPersistent: true, swipeProgress: progress)
+                            HUDManager.shared.show(text: name, systemImage: "desktopcomputer", type: .workspaceSwitch, isPersistent: true, swipeProgress: progress, isInteractive: true)
                         }
                         hasShownHUD = true
                     }
@@ -265,8 +265,16 @@ package final class TrackpadManager {
                 hasTriggered = false
                 lastRumbleX = 0.0
                 lastTriggeredDirection = 0
+                
+                if hasShownHUD {
+                    let activeIndex = WorkspaceManager.shared.focusedMonitor.active
+                    let name = config.workspaceName(for: activeIndex)
+                    DispatchQueue.main.async {
+                        HUDManager.shared.show(text: name, systemImage: "desktopcomputer", type: .workspaceSwitch, isPersistent: true, swipeProgress: 0.0, isInteractive: false)
+                        HUDManager.shared.releasePersistentHUD()
+                    }
+                }
                 hasShownHUD = false
-                HUDManager.shared.releasePersistentHUD()
             }
         }
     }
