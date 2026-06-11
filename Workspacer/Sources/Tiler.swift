@@ -59,7 +59,11 @@ package enum Tiler {
         )
 
         if count == 1 {
-            return [insetScreen]
+            if Config.shared.noPaddingForSingleWindow {
+                return [screen]
+            } else {
+                return [insetScreen]
+            }
         }
 
         var result: [CGRect] = []

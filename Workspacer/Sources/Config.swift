@@ -137,6 +137,7 @@ package struct Config {
     package var gap: CGFloat = 0
     package var hideInactiveApps: Bool = false
     package var resizeOnHide: Bool = true
+    package var noPaddingForSingleWindow: Bool = false
     package var inactiveWindowPosition: InactiveWindowPosition = .left
     package var enableCorners: Bool = false
     package var cornerRadius: CGFloat = 0
@@ -239,6 +240,10 @@ package struct Config {
 
         if let resizeOnHide = toml["resize_on_hide"] as? Bool {
             config.resizeOnHide = resizeOnHide
+        }
+
+        if let noPaddingSingle = toml["no_padding_for_single_window"] as? Bool {
+            config.noPaddingForSingleWindow = noPaddingSingle
         }
 
         if let enableCorners = toml["enable_corners"] as? Bool {
