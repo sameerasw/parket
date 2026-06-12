@@ -558,6 +558,11 @@ package final class Monitor {
         workspaces[targetIndex].insert(moved, at: 0)
     }
 
+    package func captureWindowFrames() -> [CGRect] {
+        let tiledWindows = workspaces[active].filter { !$0.isFloating }
+        return tiledWindows.compactMap { $0.getFrame() }
+    }
+
     private func centerFloatingWindow(_ window: TrackedWindow, on screen: NSScreen) {
         let screenFrame = WindowManager.screenFrame(for: screen)
         var size = CGSize(width: screenFrame.width * 0.7, height: screenFrame.height * 0.7)

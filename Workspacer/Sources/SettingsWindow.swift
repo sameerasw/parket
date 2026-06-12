@@ -86,6 +86,9 @@ package final class SettingsViewModel: ObservableObject {
     @Published var enableDynamicMenubar: Bool = false
     
     @Published var hudEnabled: Bool = true
+    @Published var switchOverlayEnabled: Bool = true
+    @Published var switchOverlayColor: String = "accent"
+    @Published var switchOverlayDelayEnabled: Bool = true
     @Published var hudPosition: String = "top"
     @Published var hudYOffset: Double = 50.0
     @Published var hudDuration: Double = 1.5
@@ -134,6 +137,9 @@ package final class SettingsViewModel: ObservableObject {
         enableDynamicMenubar = config.enableDynamicMenubar
         
         hudEnabled = config.hudEnabled
+        switchOverlayEnabled = config.switchOverlayEnabled
+        switchOverlayColor = config.switchOverlayColor
+        switchOverlayDelayEnabled = config.switchOverlayDelayEnabled
         hudPosition = config.hudPosition
         hudYOffset = Double(config.hudYOffset)
         hudDuration = config.hudDuration
@@ -179,6 +185,9 @@ package final class SettingsViewModel: ObservableObject {
         config.enableDynamicMenubar = enableDynamicMenubar
         
         config.hudEnabled = hudEnabled
+        config.switchOverlayEnabled = switchOverlayEnabled
+        config.switchOverlayColor = switchOverlayColor
+        config.switchOverlayDelayEnabled = switchOverlayDelayEnabled
         config.hudPosition = hudPosition
         config.hudYOffset = CGFloat(hudYOffset)
         config.hudDuration = hudDuration
@@ -432,6 +441,33 @@ struct SettingsView: View {
                 get: { viewModel.hudEnabled },
                 set: { viewModel.hudEnabled = $0; viewModel.saveToConfig() }
             ))
+            
+            Toggle("Enable Layout Switch Overlay Animation", isOn: SwiftUI.Binding(
+                get: { viewModel.switchOverlayEnabled },
+                set: { viewModel.switchOverlayEnabled = $0; viewModel.saveToConfig() }
+            ))
+            
+            if viewModel.switchOverlayEnabled {
+                HStack {
+                    Text("Overlay Color Theme")
+                    Spacer()
+                    Picker("", selection: SwiftUI.Binding(
+                        get: { viewModel.switchOverlayColor },
+                        set: { viewModel.switchOverlayColor = $0; viewModel.saveToConfig() }
+                    )) {
+                        Text("Accent Color").tag("accent")
+                        Text("System Theme").tag("system")
+                        Text("Dark Mode").tag("dark")
+                        Text("Light Mode").tag("light")
+                    }
+                    .frame(width: 140)
+                }
+
+                Toggle("Align Window Switch with Animation", isOn: SwiftUI.Binding(
+                    get: { viewModel.switchOverlayDelayEnabled },
+                    set: { viewModel.switchOverlayDelayEnabled = $0; viewModel.saveToConfig() }
+                ))
+            }
             
             if viewModel.hudEnabled {
                 HStack {

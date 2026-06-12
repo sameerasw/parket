@@ -31,6 +31,17 @@ package final class MouseGestureManager {
         let sensitivity = config.mouseGestureSensitivity
         let threshold: CGFloat = 350.0 / CGFloat(sensitivity)
 
+        let noiseThreshold = threshold * 0.05
+        if abs(diffX) >= noiseThreshold {
+            let focusedMonitor = WorkspaceManager.shared.focusedMonitor
+            let currentProgress = CGFloat(abs(diffX) / threshold)
+            SwitchOverlayManager.shared.updateInteractiveProgress(
+                currentProgress,
+                on: focusedMonitor.screen,
+                oldFrames: focusedMonitor.captureWindowFrames()
+            )
+        }
+
         if config.hudEnabled && config.hudOnWorkspaceSwitch {
             let noiseThreshold = threshold * 0.05
             if hasShownHUD || abs(diffX) >= noiseThreshold {
@@ -100,6 +111,8 @@ package final class MouseGestureManager {
     package func endDrag(button: Int) {
         guard isDragging else { return }
         isDragging = false
+
+        SwitchOverlayManager.shared.cancelInteractive()
 
         let config = Config.shared
         if hasShownHUD {

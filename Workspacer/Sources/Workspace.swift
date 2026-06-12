@@ -47,11 +47,39 @@ package final class WorkspaceManager {
 
     func switchTo(_ index: Int, isPersistent: Bool = false) {
         let prevIndex = focusedMonitor.active
-        for monitor in monitors {
-            monitor.switchTo(index)
+        let oldFrames = focusedMonitor.captureWindowFrames()
+        
+        let targetTiledWindows = focusedMonitor.workspaces[index].filter { !$0.isFloating }
+        let targetLayout = focusedMonitor.layouts[index]
+        let targetMasterRatio = focusedMonitor.masterRatios[index]
+        let targetStackRatios = focusedMonitor.stackRatios[index]
+        let screenRect = WindowManager.screenFrame(for: focusedMonitor.screen)
+
+        let newFrames = Tiler.calculateFrames(
+            count: targetTiledWindows.count,
+            screen: screenRect,
+            layout: targetLayout,
+            masterRatio: targetMasterRatio,
+            stackRatios: targetStackRatios
+        )
+        
+        SwitchOverlayManager.shared.show(from: oldFrames, to: newFrames, on: focusedMonitor.screen)
+        
+        if Config.shared.switchOverlayDelayEnabled {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                for monitor in self.monitors {
+                    monitor.switchTo(index)
+                }
+                self.syncApplicationVisibility()
+                StatusBar.shared.update()
+            }
+        } else {
+            for monitor in self.monitors {
+                monitor.switchTo(index)
+            }
+            self.syncApplicationVisibility()
+            StatusBar.shared.update()
         }
-        syncApplicationVisibility()
-        StatusBar.shared.update()
         
         let count = Config.shared.workspaceCount
         var slideOffset: CGFloat = 0
@@ -233,12 +261,41 @@ package final class WorkspaceManager {
     }
 
     func toggleLayout() {
-        focusedMonitor.toggleLayout()
-        StatusBar.shared.update()
-        let newLayout = focusedMonitor.layouts[focusedMonitor.active]
-        let layoutName = newLayout == .tile ? "Tiled" : "Full screen"
-        let iconName = newLayout == .tile ? "square.grid.2x2" : "square"
-        HUDManager.shared.show(text: "\(layoutName) Layout", systemImage: iconName, type: .layoutSwitch)
+        let oldFrames = focusedMonitor.captureWindowFrames()
+        
+        let targetLayout = focusedMonitor.layouts[focusedMonitor.active] == .tile ? Layout.monocle : Layout.tile
+        let tiledWindows = focusedMonitor.workspaces[focusedMonitor.active].filter { !$0.isFloating }
+        let screenRect = WindowManager.screenFrame(for: focusedMonitor.screen)
+        
+        let newFrames = Tiler.calculateFrames(
+            count: tiledWindows.count,
+            screen: screenRect,
+            layout: targetLayout,
+            masterRatio: focusedMonitor.masterRatios[focusedMonitor.active],
+            stackRatios: focusedMonitor.stackRatios[focusedMonitor.active]
+        )
+        
+        SwitchOverlayManager.shared.show(from: oldFrames, to: newFrames, on: focusedMonitor.screen)
+        
+        if Config.shared.switchOverlayDelayEnabled {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                self.focusedMonitor.toggleLayout()
+                StatusBar.shared.update()
+                
+                let newLayout = self.focusedMonitor.layouts[self.focusedMonitor.active]
+                let layoutName = newLayout == .tile ? "Tiled" : "Full screen"
+                let iconName = newLayout == .tile ? "square.grid.2x2" : "square"
+                HUDManager.shared.show(text: "\(layoutName) Layout", systemImage: iconName, type: .layoutSwitch)
+            }
+        } else {
+            self.focusedMonitor.toggleLayout()
+            StatusBar.shared.update()
+            
+            let newLayout = self.focusedMonitor.layouts[self.focusedMonitor.active]
+            let layoutName = newLayout == .tile ? "Tiled" : "Full screen"
+            let iconName = newLayout == .tile ? "square.grid.2x2" : "square"
+            HUDManager.shared.show(text: "\(layoutName) Layout", systemImage: iconName, type: .layoutSwitch)
+        }
     }
 
     func toggleActiveWindowFloating() {

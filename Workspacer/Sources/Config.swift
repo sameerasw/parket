@@ -151,6 +151,9 @@ package struct Config {
     package var cornerRadius: CGFloat = 0
     package var enableDynamicMenubar: Bool = false
     package var hudEnabled: Bool = true
+    package var switchOverlayEnabled: Bool = true
+    package var switchOverlayColor: String = "accent"
+    package var switchOverlayDelayEnabled: Bool = true
     package var hudPosition: String = "top"
     package var hudYOffset: CGFloat = 50.0
     package var hudDuration: Double = 1.5
@@ -291,6 +294,18 @@ package struct Config {
 
         if let hudEnabled = toml["hud_enabled"] as? Bool {
             config.hudEnabled = hudEnabled
+        }
+
+        if let switchOverlay = toml["switch_overlay_enabled"] as? Bool {
+            config.switchOverlayEnabled = switchOverlay
+        }
+
+        if let overlayColor = toml["switch_overlay_color"] as? String {
+            config.switchOverlayColor = overlayColor.lowercased()
+        }
+
+        if let overlayDelay = toml["switch_overlay_delay_enabled"] as? Bool {
+            config.switchOverlayDelayEnabled = overlayDelay
         }
 
         if let hudPosition = toml["hud_position"] as? String {
@@ -565,6 +580,9 @@ package struct Config {
         lines.append("enable_dynamic_menubar = \(enableDynamicMenubar)")
         lines.append("")
         lines.append("hud_enabled = \(hudEnabled)")
+        lines.append("switch_overlay_enabled = \(switchOverlayEnabled)")
+        lines.append("switch_overlay_color = \"\(switchOverlayColor)\"")
+        lines.append("switch_overlay_delay_enabled = \(switchOverlayDelayEnabled)")
         lines.append("hud_position = \"\(hudPosition)\"")
         lines.append("hud_y_offset = \(String(format: "%.1f", hudYOffset))")
         lines.append("hud_duration = \(String(format: "%.1f", hudDuration))")

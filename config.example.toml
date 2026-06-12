@@ -66,6 +66,11 @@
 # hud_on_layout_switch = true
 # hud_on_config_reload = true
 
+# Layout switch overlay animation options
+# switch_overlay_enabled = true
+# switch_overlay_color = "accent" # "accent", "system", "dark", "light"
+# switch_overlay_delay_enabled = true
+
 # global modifier key: "option", "control", "command"
 # modifier = "option"
 

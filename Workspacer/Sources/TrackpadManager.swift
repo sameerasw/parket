@@ -198,6 +198,17 @@ package final class TrackpadManager {
                 let baseThreshold: Float = 0.15
                 let threshold = baseThreshold / Float(config.trackpadSwipeSensitivity)
 
+                let noiseThreshold = threshold * 0.05
+                if abs(diff) >= noiseThreshold {
+                    let focusedMonitor = WorkspaceManager.shared.focusedMonitor
+                    let currentProgress = CGFloat(abs(diff) / threshold)
+                    SwitchOverlayManager.shared.updateInteractiveProgress(
+                        currentProgress,
+                        on: focusedMonitor.screen,
+                        oldFrames: focusedMonitor.captureWindowFrames()
+                    )
+                }
+
                 // Show HUD overlay persistently as soon as swipe movement starts and update its position
                 if config.hudEnabled && config.hudOnWorkspaceSwitch {
                     let noiseThreshold = threshold * 0.05
@@ -290,6 +301,8 @@ package final class TrackpadManager {
                 hasTriggered = false
                 lastRumbleX = 0.0
                 lastTriggeredDirection = 0
+                
+                SwitchOverlayManager.shared.cancelInteractive()
                 
                 if hasShownHUD {
                     let activeIndex = WorkspaceManager.shared.focusedMonitor.active
