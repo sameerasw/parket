@@ -70,6 +70,8 @@
 # switch_overlay_enabled = true
 # switch_overlay_color = "accent" # "accent", "system", "dark", "light"
 # switch_overlay_delay_enabled = true
+# switch_overlay_show_icons = true
+# switch_overlay_icon_size = 64.0
 
 # global modifier key: "option", "control", "command"
 # modifier = "option"

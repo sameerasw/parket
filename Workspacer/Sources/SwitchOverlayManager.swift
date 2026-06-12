@@ -2,6 +2,66 @@ import Cocoa
 import SwiftUI
 public import Combine
 
+package struct CapturedWindowInfo {
+    package let frame: CGRect
+    package let bundleId: String?
+    
+    package init(frame: CGRect, bundleId: String?) {
+        self.frame = frame
+        self.bundleId = bundleId
+    }
+}
+
+package final class AppIconCache {
+    package static let shared = AppIconCache()
+    
+    private var cache = [String: NSImage]()
+    private let lock = NSLock()
+    
+    private init() {}
+    
+    package func icon(for bundleId: String) -> NSImage? {
+        lock.lock()
+        defer { lock.unlock() }
+        if let cached = cache[bundleId] {
+            return cached
+        }
+        
+        preloadIcon(for: bundleId)
+        return nil
+    }
+    
+    package func preloadIcon(for bundleId: String) {
+        DispatchQueue.global(qos: .background).async {
+            self.lock.lock()
+            let alreadyCached = self.cache[bundleId] != nil
+            self.lock.unlock()
+            
+            if alreadyCached { return }
+            
+            if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+                let image = NSWorkspace.shared.icon(forFile: appURL.path)
+                let resized = self.resizeImage(image, to: CGSize(width: 256, height: 256))
+                
+                self.lock.lock()
+                self.cache[bundleId] = resized
+                self.lock.unlock()
+            }
+        }
+    }
+    
+    private func resizeImage(_ image: NSImage, to size: CGSize) -> NSImage {
+        let newImage = NSImage(size: size)
+        newImage.lockFocus()
+        image.draw(in: NSRect(origin: .zero, size: size),
+                   from: NSRect(origin: .zero, size: image.size),
+                   operation: .sourceOver,
+                   fraction: 1.0)
+        newImage.unlockFocus()
+        return newImage
+    }
+}
+
 package final class SwitchOverlayManager {
     package static let shared = SwitchOverlayManager()
 
@@ -10,7 +70,7 @@ package final class SwitchOverlayManager {
 
     private init() {}
 
-    package func updateInteractiveProgress(_ progress: CGFloat, on screen: NSScreen, oldFrames: [CGRect]) {
+    package func updateInteractiveProgress(_ progress: CGFloat, on screen: NSScreen, oldFrames: [CapturedWindowInfo]) {
         guard Config.shared.switchOverlayEnabled else { return }
         guard oldFrames.count >= 1 else { return }
 
@@ -45,7 +105,7 @@ package final class SwitchOverlayManager {
         }
     }
 
-    package func show(from oldFrames: [CGRect], to newFrames: [CGRect], on screen: NSScreen) {
+    package func show(from oldFrames: [CapturedWindowInfo], to newFrames: [CapturedWindowInfo], on screen: NSScreen) {
         guard Config.shared.switchOverlayEnabled else { return }
         guard oldFrames.count >= 1 || newFrames.count >= 1 else { return }
 
@@ -95,7 +155,7 @@ private final class SwitchOverlayWindow: NSWindow {
     let model: SwitchOverlayModel
     var isCommitted: Bool
 
-    init(screen: NSScreen, oldFrames: [CGRect], to newFrames: [CGRect], isInteractive: Bool) {
+    init(screen: NSScreen, oldFrames: [CapturedWindowInfo], to newFrames: [CapturedWindowInfo], isInteractive: Bool) {
         self.targetScreen = screen
         self.model = SwitchOverlayModel()
         self.isCommitted = !isInteractive
@@ -139,8 +199,9 @@ private final class SwitchOverlayWindow: NSWindow {
         
         for i in 0..<maxCount {
             if i < oldFrames.count && i < newFrames.count {
-                let old = oldFrames[i]
-                let new = newFrames[i]
+                let old = oldFrames[i].frame
+                let new = newFrames[i].frame
+                let bundleId = newFrames[i].bundleId ?? oldFrames[i].bundleId
                 let currentLocal = CGRect(
                     x: old.origin.x - screenRectYDown.origin.x,
                     y: old.origin.y - screenRectYDown.origin.y,
@@ -157,10 +218,12 @@ private final class SwitchOverlayWindow: NSWindow {
                     currentFrame: currentLocal,
                     targetFrame: targetLocal,
                     startOpacity: 1.0,
-                    targetOpacity: 1.0
+                    targetOpacity: 1.0,
+                    bundleId: bundleId
                 ))
             } else if i < oldFrames.count {
-                let old = oldFrames[i]
+                let old = oldFrames[i].frame
+                let bundleId = oldFrames[i].bundleId
                 let currentLocal = CGRect(
                     x: old.origin.x - screenRectYDown.origin.x,
                     y: old.origin.y - screenRectYDown.origin.y,
@@ -190,10 +253,12 @@ private final class SwitchOverlayWindow: NSWindow {
                     currentFrame: currentLocal,
                     targetFrame: targetLocal,
                     startOpacity: 1.0,
-                    targetOpacity: 0.0
+                    targetOpacity: 0.0,
+                    bundleId: bundleId
                 ))
             } else {
-                let new = newFrames[i]
+                let new = newFrames[i].frame
+                let bundleId = newFrames[i].bundleId
                 let targetLocal = CGRect(
                     x: new.origin.x - screenRectYDown.origin.x,
                     y: new.origin.y - screenRectYDown.origin.y,
@@ -223,7 +288,8 @@ private final class SwitchOverlayWindow: NSWindow {
                     currentFrame: currentLocal,
                     targetFrame: targetLocal,
                     startOpacity: 0.0,
-                    targetOpacity: 1.0
+                    targetOpacity: 1.0,
+                    bundleId: bundleId
                 ))
             }
         }
@@ -242,7 +308,7 @@ private final class SwitchOverlayWindow: NSWindow {
         self.alphaValue = 1.0
     }
 
-    func commit(to newFrames: [CGRect]) {
+    func commit(to newFrames: [CapturedWindowInfo]) {
         guard !isCommitted else { return }
         isCommitted = true
 
@@ -256,7 +322,7 @@ private final class SwitchOverlayWindow: NSWindow {
         for i in 0..<maxCount {
             if i < updatedBoxes.count {
                 if i < newFrames.count {
-                    let new = newFrames[i]
+                    let new = newFrames[i].frame
                     updatedBoxes[i].targetFrame = CGRect(
                         x: new.origin.x - screenRectYDown.origin.x,
                         y: new.origin.y - screenRectYDown.origin.y,
@@ -264,6 +330,7 @@ private final class SwitchOverlayWindow: NSWindow {
                         height: new.height
                     )
                     updatedBoxes[i].targetOpacity = 1.0
+                    updatedBoxes[i].bundleId = newFrames[i].bundleId
                 } else {
                     updatedBoxes[i].targetOpacity = 0.0
                     // Retract width or height to edge
@@ -287,16 +354,17 @@ private final class SwitchOverlayWindow: NSWindow {
                 }
             } else {
                 // New window box appearing
-                let new = newFrames[i]
+                let new = newFrames[i].frame
+                let bundleId = newFrames[i].bundleId
+                let expandFromRight = (new.midX > screenWidth / 2)
+                let expandFromBottom = (new.midY > screenHeight / 2)
+                
                 let targetLocal = CGRect(
                     x: new.origin.x - screenRectYDown.origin.x,
                     y: new.origin.y - screenRectYDown.origin.y,
                     width: new.width,
                     height: new.height
                 )
-                let expandFromRight = (targetLocal.midX > screenWidth / 2)
-                let expandFromBottom = (targetLocal.midY > screenHeight / 2)
-                
                 let currentLocal: CGRect
                 if targetLocal.width > targetLocal.height {
                     if expandFromBottom {
@@ -316,7 +384,8 @@ private final class SwitchOverlayWindow: NSWindow {
                     currentFrame: currentLocal,
                     targetFrame: targetLocal,
                     startOpacity: 0.0,
-                    targetOpacity: 1.0
+                    targetOpacity: 1.0,
+                    bundleId: bundleId
                 ))
             }
         }
@@ -345,6 +414,7 @@ private struct BoxState: Identifiable {
     var targetFrame: CGRect
     var startOpacity: Double
     var targetOpacity: Double
+    var bundleId: String?
 }
 
 private struct SwitchOverlayView: View {
@@ -372,6 +442,16 @@ private struct SwitchOverlayView: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
                             .stroke(borderColor, lineWidth: 1)
+                    )
+                    .overlay(
+                        Group {
+                            if Config.shared.switchOverlayShowIcons, let bundleId = box.bundleId, let nsImage = AppIconCache.shared.icon(for: bundleId) {
+                                Image(nsImage: nsImage)
+                                    .resizable()
+                                    .frame(width: Config.shared.switchOverlayIconSize, height: Config.shared.switchOverlayIconSize)
+                                    .shadow(color: Color.black.opacity(0.15), radius: 2, x: 0, y: 1)
+                            }
+                        }
                     )
                     .applyGlassViewIfAvailable(cornerRadius: 12)
                     .frame(width: max(0, frame.width), height: max(0, frame.height))

@@ -89,6 +89,8 @@ package final class SettingsViewModel: ObservableObject {
     @Published var switchOverlayEnabled: Bool = true
     @Published var switchOverlayColor: String = "accent"
     @Published var switchOverlayDelayEnabled: Bool = true
+    @Published var switchOverlayShowIcons: Bool = true
+    @Published var switchOverlayIconSize: Double = 64.0
     @Published var hudPosition: String = "top"
     @Published var hudYOffset: Double = 50.0
     @Published var hudDuration: Double = 1.5
@@ -140,6 +142,8 @@ package final class SettingsViewModel: ObservableObject {
         switchOverlayEnabled = config.switchOverlayEnabled
         switchOverlayColor = config.switchOverlayColor
         switchOverlayDelayEnabled = config.switchOverlayDelayEnabled
+        switchOverlayShowIcons = config.switchOverlayShowIcons
+        switchOverlayIconSize = Double(config.switchOverlayIconSize)
         hudPosition = config.hudPosition
         hudYOffset = Double(config.hudYOffset)
         hudDuration = config.hudDuration
@@ -188,6 +192,8 @@ package final class SettingsViewModel: ObservableObject {
         config.switchOverlayEnabled = switchOverlayEnabled
         config.switchOverlayColor = switchOverlayColor
         config.switchOverlayDelayEnabled = switchOverlayDelayEnabled
+        config.switchOverlayShowIcons = switchOverlayShowIcons
+        config.switchOverlayIconSize = CGFloat(switchOverlayIconSize)
         config.hudPosition = hudPosition
         config.hudYOffset = CGFloat(hudYOffset)
         config.hudDuration = hudDuration
@@ -467,6 +473,26 @@ struct SettingsView: View {
                     get: { viewModel.switchOverlayDelayEnabled },
                     set: { viewModel.switchOverlayDelayEnabled = $0; viewModel.saveToConfig() }
                 ))
+
+                Toggle("Show App Icons in Overlay", isOn: SwiftUI.Binding(
+                    get: { viewModel.switchOverlayShowIcons },
+                    set: { viewModel.switchOverlayShowIcons = $0; viewModel.saveToConfig() }
+                ))
+
+                if viewModel.switchOverlayShowIcons {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("Icon Size")
+                            Spacer()
+                            Text("\(Int(viewModel.switchOverlayIconSize)) px")
+                                .foregroundColor(.secondary)
+                        }
+                        Slider(value: SwiftUI.Binding(
+                            get: { viewModel.switchOverlayIconSize },
+                            set: { viewModel.switchOverlayIconSize = $0; viewModel.saveToConfig() }
+                        ), in: 32...192, step: 8)
+                    }
+                }
             }
             
             if viewModel.hudEnabled {

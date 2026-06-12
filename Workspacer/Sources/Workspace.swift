@@ -29,6 +29,9 @@ package final class WorkspaceManager {
         let windows = WindowManager.allWindows()
         for window in windows {
             let monitor = monitorForWindow(window)
+            if let bundleId = bundleIdentifier(for: window) {
+                AppIconCache.shared.preloadIcon(for: bundleId)
+            }
             if let bundleId = bundleIdentifier(for: window),
                let savedWorkspace = AppStateStore.shared.getWorkspace(for: bundleId) {
                 monitor.insertWindow(window, to: savedWorkspace)
@@ -55,13 +58,18 @@ package final class WorkspaceManager {
         let targetStackRatios = focusedMonitor.stackRatios[index]
         let screenRect = WindowManager.screenFrame(for: focusedMonitor.screen)
 
-        let newFrames = Tiler.calculateFrames(
+        let targetFrames = Tiler.calculateFrames(
             count: targetTiledWindows.count,
             screen: screenRect,
             layout: targetLayout,
             masterRatio: targetMasterRatio,
             stackRatios: targetStackRatios
         )
+        
+        let newFrames = zip(targetTiledWindows, targetFrames).map { win, frame in
+            let bundleId = NSRunningApplication(processIdentifier: win.pid)?.bundleIdentifier
+            return CapturedWindowInfo(frame: frame, bundleId: bundleId)
+        }
         
         SwitchOverlayManager.shared.show(from: oldFrames, to: newFrames, on: focusedMonitor.screen)
         
@@ -167,6 +175,9 @@ package final class WorkspaceManager {
 
     @discardableResult
     func addWindow(_ window: TrackedWindow) -> WindowUpdate {
+        if let bundleId = bundleIdentifier(for: window) {
+            AppIconCache.shared.preloadIcon(for: bundleId)
+        }
         for monitor in monitors {
             let result = monitor.updateExistingWindow(window)
             if result != .missing {
@@ -212,6 +223,9 @@ package final class WorkspaceManager {
     }
 
     func syncWindows(pid: pid_t, windows: [TrackedWindow]) {
+        if let app = NSRunningApplication(processIdentifier: pid), let bundleId = app.bundleIdentifier {
+            AppIconCache.shared.preloadIcon(for: bundleId)
+        }
         var changed = false
         for monitor in monitors {
             if monitor.removeStaleWindows(pid: pid, current: windows) {
@@ -267,13 +281,18 @@ package final class WorkspaceManager {
         let tiledWindows = focusedMonitor.workspaces[focusedMonitor.active].filter { !$0.isFloating }
         let screenRect = WindowManager.screenFrame(for: focusedMonitor.screen)
         
-        let newFrames = Tiler.calculateFrames(
+        let targetFrames = Tiler.calculateFrames(
             count: tiledWindows.count,
             screen: screenRect,
             layout: targetLayout,
             masterRatio: focusedMonitor.masterRatios[focusedMonitor.active],
             stackRatios: focusedMonitor.stackRatios[focusedMonitor.active]
         )
+        
+        let newFrames = zip(tiledWindows, targetFrames).map { win, frame in
+            let bundleId = NSRunningApplication(processIdentifier: win.pid)?.bundleIdentifier
+            return CapturedWindowInfo(frame: frame, bundleId: bundleId)
+        }
         
         SwitchOverlayManager.shared.show(from: oldFrames, to: newFrames, on: focusedMonitor.screen)
         
