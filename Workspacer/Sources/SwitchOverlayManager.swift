@@ -434,7 +434,8 @@ private struct SwitchOverlayView: View {
                 let isDark = theme == "dark" || (theme == "system" && colorScheme == .dark)
                 let isLight = theme == "light" || (theme == "system" && colorScheme == .light)
                 
-                let fillColor = isDark ? Color.black.opacity(0.3) : (isLight ? Color.white.opacity(0.3) : Color.accentColor.opacity(0.15))
+                let tintColor = isDark ? Color.black : (isLight ? Color.white : Color.accentColor)
+                let fillColor = tintColor.opacity(Config.shared.switchOverlayColorOpacity)
                 let borderColor = isDark ? Color.white.opacity(0.15) : (isLight ? Color.black.opacity(0.15) : Color.accentColor.opacity(0.25))
                 
                 RoundedRectangle(cornerRadius: 12)

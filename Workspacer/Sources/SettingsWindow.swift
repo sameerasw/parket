@@ -91,6 +91,7 @@ package final class SettingsViewModel: ObservableObject {
     @Published var switchOverlayDelayEnabled: Bool = true
     @Published var switchOverlayShowIcons: Bool = true
     @Published var switchOverlayIconSize: Double = 64.0
+    @Published var switchOverlayColorOpacity: Double = 0.2
     @Published var hudPosition: String = "top"
     @Published var hudYOffset: Double = 50.0
     @Published var hudDuration: Double = 1.5
@@ -144,6 +145,7 @@ package final class SettingsViewModel: ObservableObject {
         switchOverlayDelayEnabled = config.switchOverlayDelayEnabled
         switchOverlayShowIcons = config.switchOverlayShowIcons
         switchOverlayIconSize = Double(config.switchOverlayIconSize)
+        switchOverlayColorOpacity = Double(config.switchOverlayColorOpacity)
         hudPosition = config.hudPosition
         hudYOffset = Double(config.hudYOffset)
         hudDuration = config.hudDuration
@@ -194,6 +196,7 @@ package final class SettingsViewModel: ObservableObject {
         config.switchOverlayDelayEnabled = switchOverlayDelayEnabled
         config.switchOverlayShowIcons = switchOverlayShowIcons
         config.switchOverlayIconSize = CGFloat(switchOverlayIconSize)
+        config.switchOverlayColorOpacity = CGFloat(switchOverlayColorOpacity)
         config.hudPosition = hudPosition
         config.hudYOffset = CGFloat(hudYOffset)
         config.hudDuration = hudDuration
@@ -467,6 +470,19 @@ struct SettingsView: View {
                         Text("Light Mode").tag("light")
                     }
                     .frame(width: 140)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Overlay Color Opacity")
+                        Spacer()
+                        Text(String(format: "%.0f%%", viewModel.switchOverlayColorOpacity * 100))
+                            .foregroundColor(.secondary)
+                    }
+                    Slider(value: SwiftUI.Binding(
+                        get: { viewModel.switchOverlayColorOpacity },
+                        set: { viewModel.switchOverlayColorOpacity = $0; viewModel.saveToConfig() }
+                    ), in: 0.0...1.0, step: 0.05)
                 }
 
                 Toggle("Align Window Switch with Animation", isOn: SwiftUI.Binding(
