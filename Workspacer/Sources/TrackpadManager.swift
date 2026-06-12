@@ -213,7 +213,7 @@ package final class TrackpadManager {
                 if config.hudEnabled && config.hudOnWorkspaceSwitch {
                     let noiseThreshold = threshold * 0.05
                     if hasShownHUD || abs(diff) >= noiseThreshold {
-                        let activeIndex = WorkspaceManager.shared.focusedMonitor.active
+                        let activeIndex = WorkspaceManager.shared.activeWorkspaceIndex
                         let name = config.workspaceName(for: activeIndex)
                         var progress = CGFloat(diff / threshold)
 
@@ -255,7 +255,7 @@ package final class TrackpadManager {
                     let isOppositeDirection = (direction != lastTriggeredDirection)
 
                     // Check boundary: if loop is off and we're already at the edge, skip entirely
-                    let activeIndex = WorkspaceManager.shared.focusedMonitor.active
+                    let activeIndex = WorkspaceManager.shared.activeWorkspaceIndex
                     let count = config.workspaceCount
                     let atBoundary = !config.workspaceLoopEnabled && (
                         (direction < 0 && activeIndex >= count - 1) ||
@@ -269,12 +269,12 @@ package final class TrackpadManager {
                         if direction < 0 {
                             // Swipe left (fingers move left) -> switch next
                             DispatchQueue.main.async {
-                                WorkspaceManager.shared.switchToNext(isPersistent: true)
+                                WorkspaceManager.shared.switchToNext(isPersistent: true, isGesture: true)
                             }
                         } else {
                             // Swipe right (fingers move right) -> switch prev
                             DispatchQueue.main.async {
-                                WorkspaceManager.shared.switchToPrev(isPersistent: true)
+                                WorkspaceManager.shared.switchToPrev(isPersistent: true, isGesture: true)
                             }
                         }
 
@@ -305,7 +305,7 @@ package final class TrackpadManager {
                 SwitchOverlayManager.shared.cancelInteractive()
                 
                 if hasShownHUD {
-                    let activeIndex = WorkspaceManager.shared.focusedMonitor.active
+                    let activeIndex = WorkspaceManager.shared.activeWorkspaceIndex
                     let name = config.workspaceName(for: activeIndex)
                     DispatchQueue.main.async {
                         HUDManager.shared.show(text: name, systemImage: "desktopcomputer", type: .workspaceSwitch, isPersistent: true, swipeProgress: 0.0, isInteractive: false)

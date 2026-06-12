@@ -1,82 +1,82 @@
-import Cocoa
-import SwiftUI
-public import Combine
+    import Cocoa
+    import SwiftUI
+    public import Combine
 
-package struct CapturedWindowInfo {
-    package let frame: CGRect
-    package let bundleId: String?
-    
-    package init(frame: CGRect, bundleId: String?) {
-        self.frame = frame
-        self.bundleId = bundleId
+    package struct CapturedWindowInfo {
+        package let frame: CGRect
+        package let bundleId: String?
+        
+        package init(frame: CGRect, bundleId: String?) {
+            self.frame = frame
+            self.bundleId = bundleId
+        }
     }
-}
 
-package final class AppIconCache {
-    package static let shared = AppIconCache()
-    
-    private var cache = [String: NSImage]()
-    private let lock = NSLock()
-    
-    private init() {}
-    
-    package func icon(for bundleId: String) -> NSImage? {
-        lock.lock()
-        defer { lock.unlock() }
-        if let cached = cache[bundleId] {
-            return cached
+    package final class AppIconCache {
+        package static let shared = AppIconCache()
+        
+        private var cache = [String: NSImage]()
+        private let lock = NSLock()
+        
+        private init() {}
+        
+        package func icon(for bundleId: String) -> NSImage? {
+            lock.lock()
+            defer { lock.unlock() }
+            if let cached = cache[bundleId] {
+                return cached
+            }
+            
+            preloadIcon(for: bundleId)
+            return nil
         }
         
-        preloadIcon(for: bundleId)
-        return nil
-    }
-    
-    package func preloadIcon(for bundleId: String) {
-        DispatchQueue.global(qos: .background).async {
-            self.lock.lock()
-            let alreadyCached = self.cache[bundleId] != nil
-            self.lock.unlock()
-            
-            if alreadyCached { return }
-            
-            if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
-                let image = NSWorkspace.shared.icon(forFile: appURL.path)
-                let resized = self.resizeImage(image, to: CGSize(width: 256, height: 256))
-                
+        package func preloadIcon(for bundleId: String) {
+            DispatchQueue.global(qos: .background).async {
                 self.lock.lock()
-                self.cache[bundleId] = resized
+                let alreadyCached = self.cache[bundleId] != nil
                 self.lock.unlock()
+                
+                if alreadyCached { return }
+                
+                if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleId) {
+                    let image = NSWorkspace.shared.icon(forFile: appURL.path)
+                    let resized = self.resizeImage(image, to: CGSize(width: 256, height: 256))
+                    
+                    self.lock.lock()
+                    self.cache[bundleId] = resized
+                    self.lock.unlock()
+                }
             }
         }
+        
+        private func resizeImage(_ image: NSImage, to size: CGSize) -> NSImage {
+            let newImage = NSImage(size: size)
+            newImage.lockFocus()
+            image.draw(in: NSRect(origin: .zero, size: size),
+                       from: NSRect(origin: .zero, size: image.size),
+                       operation: .sourceOver,
+                       fraction: 1.0)
+            newImage.unlockFocus()
+            return newImage
+        }
     }
-    
-    private func resizeImage(_ image: NSImage, to size: CGSize) -> NSImage {
-        let newImage = NSImage(size: size)
-        newImage.lockFocus()
-        image.draw(in: NSRect(origin: .zero, size: size),
-                   from: NSRect(origin: .zero, size: image.size),
-                   operation: .sourceOver,
-                   fraction: 1.0)
-        newImage.unlockFocus()
-        return newImage
-    }
-}
 
-package final class SwitchOverlayManager {
-    package static let shared = SwitchOverlayManager()
+    package final class SwitchOverlayManager {
+        package static let shared = SwitchOverlayManager()
 
-    private var overlayWindow: SwitchOverlayWindow?
-    private var fadeOutTimer: Timer?
+        private var overlayWindow: SwitchOverlayWindow?
+        private var fadeOutTimer: Timer?
 
-    private init() {}
+        private init() {}
 
-    package func updateInteractiveProgress(_ progress: CGFloat, on screen: NSScreen, oldFrames: [CapturedWindowInfo]) {
-        guard Config.shared.switchOverlayEnabled else { return }
-        guard oldFrames.count >= 1 else { return }
+        package func updateInteractiveProgress(_ progress: CGFloat, on screen: NSScreen, oldFrames: [CapturedWindowInfo]) {
+            guard Config.shared.switchOverlayEnabled else { return }
+            guard oldFrames.count >= 1 else { return }
 
-        DispatchQueue.main.async { [weak self] in
-            guard let self = self else { return }
-            
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                
             if let window = self.overlayWindow {
                 if !window.isCommitted {
                     window.alphaValue = min(1.0, progress)

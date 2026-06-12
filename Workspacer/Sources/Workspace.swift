@@ -18,6 +18,11 @@ package final class WorkspaceManager {
     private(set) var focusedMonitorIndex: Int = 0
     private var screenChangeWork: DispatchWorkItem?
     private var focusFollowWork: DispatchWorkItem?
+    private var pendingActiveWorkspaceIndex: Int?
+
+    package var activeWorkspaceIndex: Int {
+        pendingActiveWorkspaceIndex ?? focusedMonitor.active
+    }
 
     var focusedMonitor: Monitor { monitors[focusedMonitorIndex] }
 
@@ -48,7 +53,7 @@ package final class WorkspaceManager {
         StatusBar.shared.update()
     }
 
-    func switchTo(_ index: Int, isPersistent: Bool = false) {
+    func switchTo(_ index: Int, isPersistent: Bool = false, isGesture: Bool = false) {
         let prevIndex = focusedMonitor.active
         let oldFrames = focusedMonitor.captureWindowFrames()
         
@@ -71,10 +76,14 @@ package final class WorkspaceManager {
             return CapturedWindowInfo(frame: frame, bundleId: bundleId)
         }
         
+        pendingActiveWorkspaceIndex = index
         SwitchOverlayManager.shared.show(from: oldFrames, to: newFrames, on: focusedMonitor.screen)
         
-        if Config.shared.switchOverlayDelayEnabled {
+        if Config.shared.switchOverlayDelayEnabled && isGesture {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                if self.pendingActiveWorkspaceIndex == index {
+                    self.pendingActiveWorkspaceIndex = nil
+                }
                 for monitor in self.monitors {
                     monitor.switchTo(index)
                 }
@@ -82,6 +91,7 @@ package final class WorkspaceManager {
                 StatusBar.shared.update()
             }
         } else {
+            self.pendingActiveWorkspaceIndex = nil
             for monitor in self.monitors {
                 monitor.switchTo(index)
             }
@@ -106,20 +116,20 @@ package final class WorkspaceManager {
         switchTo(target)
     }
 
-    func switchToPrev(isPersistent: Bool = false) {
+    func switchToPrev(isPersistent: Bool = false, isGesture: Bool = false) {
         let current = focusedMonitor.active
         let count = Config.shared.workspaceCount
         guard Config.shared.workspaceLoopEnabled || current > 0 else { return }
         let target = (current - 1 + count) % count
-        switchTo(target, isPersistent: isPersistent)
+        switchTo(target, isPersistent: isPersistent, isGesture: isGesture)
     }
 
-    func switchToNext(isPersistent: Bool = false) {
+    func switchToNext(isPersistent: Bool = false, isGesture: Bool = false) {
         let current = focusedMonitor.active
         let count = Config.shared.workspaceCount
         guard Config.shared.workspaceLoopEnabled || current < count - 1 else { return }
         let target = (current + 1) % count
-        switchTo(target, isPersistent: isPersistent)
+        switchTo(target, isPersistent: isPersistent, isGesture: isGesture)
     }
 
     func moveActiveWindowToPrev() {

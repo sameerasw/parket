@@ -139,7 +139,7 @@ private final class HUDWindow: NSWindow {
     }
 
     private func updateContentView() {
-        let activeIndex = WorkspaceManager.shared.focusedMonitor.active
+        let activeIndex = WorkspaceManager.shared.activeWorkspaceIndex
         let count = Config.shared.workspaceCount
         var names: [String] = []
         for i in 0..<count {

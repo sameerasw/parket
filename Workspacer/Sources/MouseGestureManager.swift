@@ -45,7 +45,7 @@ package final class MouseGestureManager {
         if config.hudEnabled && config.hudOnWorkspaceSwitch {
             let noiseThreshold = threshold * 0.05
             if hasShownHUD || abs(diffX) >= noiseThreshold {
-                let activeIndex = WorkspaceManager.shared.focusedMonitor.active
+                let activeIndex = WorkspaceManager.shared.activeWorkspaceIndex
                 let name = config.workspaceName(for: activeIndex)
                 var progress = diffX / threshold
 
@@ -81,7 +81,7 @@ package final class MouseGestureManager {
             let direction = diffX < 0 ? -1 : 1
             let isOppositeDirection = (direction != lastTriggeredDirection)
 
-            let activeIndex = WorkspaceManager.shared.focusedMonitor.active
+            let activeIndex = WorkspaceManager.shared.activeWorkspaceIndex
             let count = config.workspaceCount
             let atBoundary = !config.workspaceLoopEnabled && (
                 (direction < 0 && activeIndex >= count - 1) ||
@@ -93,11 +93,11 @@ package final class MouseGestureManager {
 
                 if direction < 0 {
                     DispatchQueue.main.async {
-                        WorkspaceManager.shared.switchToNext(isPersistent: true)
+                        WorkspaceManager.shared.switchToNext(isPersistent: true, isGesture: true)
                     }
                 } else {
                     DispatchQueue.main.async {
-                        WorkspaceManager.shared.switchToPrev(isPersistent: true)
+                        WorkspaceManager.shared.switchToPrev(isPersistent: true, isGesture: true)
                     }
                 }
 
@@ -116,7 +116,7 @@ package final class MouseGestureManager {
 
         let config = Config.shared
         if hasShownHUD {
-            let activeIndex = WorkspaceManager.shared.focusedMonitor.active
+            let activeIndex = WorkspaceManager.shared.activeWorkspaceIndex
             let name = config.workspaceName(for: activeIndex)
             DispatchQueue.main.async {
                 HUDManager.shared.show(
