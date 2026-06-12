@@ -157,6 +157,7 @@ package struct Config {
     package var switchOverlayShowIcons: Bool = true
     package var switchOverlayIconSize: CGFloat = 64.0
     package var switchOverlayColorOpacity: CGFloat = 0.2
+    package var switchOverlayMode: String = "morph"
     package var hudPosition: String = "top"
     package var hudYOffset: CGFloat = 50.0
     package var hudDuration: Double = 1.5
@@ -325,6 +326,10 @@ package struct Config {
             config.switchOverlayColorOpacity = CGFloat(colorOpacity)
         } else if let colorOpacity = toml["switch_overlay_color_opacity"] as? Int {
             config.switchOverlayColorOpacity = CGFloat(colorOpacity)
+        }
+
+        if let overlayMode = toml["switch_overlay_mode"] as? String {
+            config.switchOverlayMode = overlayMode.lowercased()
         }
 
         if let hudPosition = toml["hud_position"] as? String {
@@ -605,6 +610,7 @@ package struct Config {
         lines.append("switch_overlay_show_icons = \(switchOverlayShowIcons)")
         lines.append("switch_overlay_icon_size = \(String(format: "%.1f", switchOverlayIconSize))")
         lines.append("switch_overlay_color_opacity = \(String(format: "%.2f", switchOverlayColorOpacity))")
+        lines.append("switch_overlay_mode = \"\(switchOverlayMode)\"")
         lines.append("hud_position = \"\(hudPosition)\"")
         lines.append("hud_y_offset = \(String(format: "%.1f", hudYOffset))")
         lines.append("hud_duration = \(String(format: "%.1f", hudDuration))")

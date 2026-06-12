@@ -92,6 +92,7 @@ package final class SettingsViewModel: ObservableObject {
     @Published var switchOverlayShowIcons: Bool = true
     @Published var switchOverlayIconSize: Double = 64.0
     @Published var switchOverlayColorOpacity: Double = 0.2
+    @Published var switchOverlayMode: String = "morph"
     @Published var hudPosition: String = "top"
     @Published var hudYOffset: Double = 50.0
     @Published var hudDuration: Double = 1.5
@@ -146,6 +147,7 @@ package final class SettingsViewModel: ObservableObject {
         switchOverlayShowIcons = config.switchOverlayShowIcons
         switchOverlayIconSize = Double(config.switchOverlayIconSize)
         switchOverlayColorOpacity = Double(config.switchOverlayColorOpacity)
+        switchOverlayMode = config.switchOverlayMode
         hudPosition = config.hudPosition
         hudYOffset = Double(config.hudYOffset)
         hudDuration = config.hudDuration
@@ -197,6 +199,7 @@ package final class SettingsViewModel: ObservableObject {
         config.switchOverlayShowIcons = switchOverlayShowIcons
         config.switchOverlayIconSize = CGFloat(switchOverlayIconSize)
         config.switchOverlayColorOpacity = CGFloat(switchOverlayColorOpacity)
+        config.switchOverlayMode = switchOverlayMode
         config.hudPosition = hudPosition
         config.hudYOffset = CGFloat(hudYOffset)
         config.hudDuration = hudDuration
@@ -483,6 +486,20 @@ struct SettingsView: View {
                         get: { viewModel.switchOverlayColorOpacity },
                         set: { viewModel.switchOverlayColorOpacity = $0; viewModel.saveToConfig() }
                     ), in: 0.0...1.0, step: 0.05)
+                }
+
+                HStack {
+                    Text("Overlay Animation Mode")
+                    Spacer()
+                    Picker("", selection: SwiftUI.Binding(
+                        get: { viewModel.switchOverlayMode },
+                        set: { viewModel.switchOverlayMode = $0; viewModel.saveToConfig() }
+                    )) {
+                        Text("Morph").tag("morph")
+                        Text("Slide").tag("slide")
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 140)
                 }
 
                 Toggle("Align Window Switch with Animation", isOn: SwiftUI.Binding(

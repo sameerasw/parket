@@ -50,41 +50,43 @@
             }
         }
         
-        private func resizeImage(_ image: NSImage, to size: CGSize) -> NSImage {
-            let newImage = NSImage(size: size)
-            newImage.lockFocus()
-            image.draw(in: NSRect(origin: .zero, size: size),
-                       from: NSRect(origin: .zero, size: image.size),
-                       operation: .sourceOver,
-                       fraction: 1.0)
-            newImage.unlockFocus()
-            return newImage
-        }
+    private func resizeImage(_ image: NSImage, to size: CGSize) -> NSImage {
+        let newImage = NSImage(size: size)
+        newImage.lockFocus()
+        image.draw(in: NSRect(origin: .zero, size: size),
+                   from: NSRect(origin: .zero, size: image.size),
+                   operation: .sourceOver,
+                   fraction: 1.0)
+        newImage.unlockFocus()
+        return newImage
     }
+}
 
-    package final class SwitchOverlayManager {
-        package static let shared = SwitchOverlayManager()
+package final class SwitchOverlayManager {
+    package static let shared = SwitchOverlayManager()
 
-        private var overlayWindow: SwitchOverlayWindow?
-        private var fadeOutTimer: Timer?
+    private var overlayWindow: SwitchOverlayWindow?
+    private var fadeOutTimer: Timer?
 
-        private init() {}
+    private init() {}
 
-        package func updateInteractiveProgress(_ progress: CGFloat, on screen: NSScreen, oldFrames: [CapturedWindowInfo]) {
-            guard Config.shared.switchOverlayEnabled else { return }
-            guard oldFrames.count >= 1 else { return }
+    package func updateInteractiveProgress(_ progress: CGFloat, on screen: NSScreen, oldFrames: [CapturedWindowInfo]) {
+        guard Config.shared.switchOverlayEnabled else { return }
+        guard oldFrames.count >= 1 else { return }
 
-            DispatchQueue.main.async { [weak self] in
-                guard let self = self else { return }
-                
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
             if let window = self.overlayWindow {
                 if !window.isCommitted {
-                    window.alphaValue = min(1.0, progress)
+                    window.alphaValue = min(1.0, abs(progress))
+                    window.setInteractiveProgress(progress)
                 }
             } else {
-                let window = SwitchOverlayWindow(screen: screen, oldFrames: oldFrames, to: oldFrames, isInteractive: true)
+                let window = SwitchOverlayWindow(screen: screen, oldFrames: oldFrames, to: oldFrames, isInteractive: true, direction: progress < 0 ? -1.0 : 1.0)
                 self.overlayWindow = window
-                window.alphaValue = min(1.0, progress)
+                window.alphaValue = min(1.0, abs(progress))
+                window.setInteractiveProgress(progress)
             }
         }
     }
@@ -94,6 +96,11 @@
             guard let self = self else { return }
             if let window = self.overlayWindow {
                 if !window.isCommitted {
+                    if window.model.mode == "slide" {
+                        withAnimation(.spring(response: 0.25, dampingFraction: 0.9)) {
+                            window.model.progress = 0.0
+                        }
+                    }
                     window.fadeOut {
                         window.close()
                         if self.overlayWindow === window {
@@ -105,7 +112,7 @@
         }
     }
 
-    package func show(from oldFrames: [CapturedWindowInfo], to newFrames: [CapturedWindowInfo], on screen: NSScreen) {
+    package func show(from oldFrames: [CapturedWindowInfo], to newFrames: [CapturedWindowInfo], on screen: NSScreen, direction: CGFloat = -1.0) {
         guard Config.shared.switchOverlayEnabled else { return }
         guard oldFrames.count >= 1 || newFrames.count >= 1 else { return }
 
@@ -128,7 +135,7 @@
                 }
             } else {
                 // Non-interactive path
-                let window = SwitchOverlayWindow(screen: screen, oldFrames: oldFrames, to: newFrames, isInteractive: false)
+                let window = SwitchOverlayWindow(screen: screen, oldFrames: oldFrames, to: newFrames, isInteractive: false, direction: direction)
                 self.overlayWindow = window
                 window.fadeIn()
 
@@ -148,6 +155,11 @@
 private final class SwitchOverlayModel: ObservableObject {
     @Published var animate = false
     @Published var boxes: [BoxState] = []
+    @Published var sourceBoxes: [BoxState] = []
+    @Published var targetBoxes: [BoxState] = []
+    @Published var progress: CGFloat = 0.0
+    @Published var direction: CGFloat = -1.0
+    @Published var mode: String = "morph"
 }
 
 private final class SwitchOverlayWindow: NSWindow {
@@ -155,10 +167,11 @@ private final class SwitchOverlayWindow: NSWindow {
     let model: SwitchOverlayModel
     var isCommitted: Bool
 
-    init(screen: NSScreen, oldFrames: [CapturedWindowInfo], to newFrames: [CapturedWindowInfo], isInteractive: Bool) {
+    init(screen: NSScreen, oldFrames: [CapturedWindowInfo], to newFrames: [CapturedWindowInfo], isInteractive: Bool, direction: CGFloat = -1.0) {
         self.targetScreen = screen
         self.model = SwitchOverlayModel()
         self.isCommitted = !isInteractive
+        self.model.mode = Config.shared.switchOverlayMode
 
         let screenFrame = screen.frame
         
@@ -191,111 +204,158 @@ private final class SwitchOverlayWindow: NSWindow {
         self.appearance = NSAppearance(named: useDarkAppearance ? .vibrantDark : .vibrantLight)
 
         let screenRectYDown = WindowManager.screenRect(for: screen)
-        let screenWidth = screenRectYDown.width
-        let screenHeight = screenRectYDown.height
-        
-        var boxes: [BoxState] = []
-        let maxCount = max(oldFrames.count, newFrames.count)
-        
-        for i in 0..<maxCount {
-            if i < oldFrames.count && i < newFrames.count {
-                let old = oldFrames[i].frame
-                let new = newFrames[i].frame
-                let bundleId = newFrames[i].bundleId ?? oldFrames[i].bundleId
-                let currentLocal = CGRect(
-                    x: old.origin.x - screenRectYDown.origin.x,
-                    y: old.origin.y - screenRectYDown.origin.y,
-                    width: old.width,
-                    height: old.height
+        if model.mode == "slide" {
+            // Populate sourceBoxes
+            var src: [BoxState] = []
+            for frameInfo in oldFrames {
+                let local = CGRect(
+                    x: frameInfo.frame.origin.x - screenRectYDown.origin.x,
+                    y: frameInfo.frame.origin.y - screenRectYDown.origin.y,
+                    width: frameInfo.frame.width,
+                    height: frameInfo.frame.height
                 )
-                let targetLocal = CGRect(
-                    x: new.origin.x - screenRectYDown.origin.x,
-                    y: new.origin.y - screenRectYDown.origin.y,
-                    width: new.width,
-                    height: new.height
-                )
-                boxes.append(BoxState(
-                    currentFrame: currentLocal,
-                    targetFrame: targetLocal,
-                    startOpacity: 1.0,
-                    targetOpacity: 1.0,
-                    bundleId: bundleId
-                ))
-            } else if i < oldFrames.count {
-                let old = oldFrames[i].frame
-                let bundleId = oldFrames[i].bundleId
-                let currentLocal = CGRect(
-                    x: old.origin.x - screenRectYDown.origin.x,
-                    y: old.origin.y - screenRectYDown.origin.y,
-                    width: old.width,
-                    height: old.height
-                )
-                // Retract width or height to edge instead of scaling to center
-                let retractToRight = (currentLocal.midX > screenWidth / 2)
-                let retractToBottom = (currentLocal.midY > screenHeight / 2)
-                
-                let targetLocal: CGRect
-                if currentLocal.width > currentLocal.height {
-                    if retractToBottom {
-                        targetLocal = CGRect(x: currentLocal.origin.x, y: currentLocal.maxY, width: currentLocal.width, height: 0)
-                    } else {
-                        targetLocal = CGRect(x: currentLocal.origin.x, y: currentLocal.origin.y, width: currentLocal.width, height: 0)
-                    }
-                } else {
-                    if retractToRight {
-                        targetLocal = CGRect(x: currentLocal.maxX, y: currentLocal.origin.y, width: 0, height: currentLocal.height)
-                    } else {
-                        targetLocal = CGRect(x: currentLocal.origin.x, y: currentLocal.origin.y, width: 0, height: currentLocal.height)
-                    }
-                }
-                
-                boxes.append(BoxState(
-                    currentFrame: currentLocal,
-                    targetFrame: targetLocal,
+                src.append(BoxState(
+                    currentFrame: local,
+                    targetFrame: local,
                     startOpacity: 1.0,
                     targetOpacity: 0.0,
-                    bundleId: bundleId
-                ))
-            } else {
-                let new = newFrames[i].frame
-                let bundleId = newFrames[i].bundleId
-                let targetLocal = CGRect(
-                    x: new.origin.x - screenRectYDown.origin.x,
-                    y: new.origin.y - screenRectYDown.origin.y,
-                    width: new.width,
-                    height: new.height
-                )
-                // Expand width or height from edge instead of scaling from center
-                let expandFromRight = (targetLocal.midX > screenWidth / 2)
-                let expandFromBottom = (targetLocal.midY > screenHeight / 2)
-                
-                let currentLocal: CGRect
-                if targetLocal.width > targetLocal.height {
-                    if expandFromBottom {
-                        currentLocal = CGRect(x: targetLocal.origin.x, y: targetLocal.maxY, width: targetLocal.width, height: 0)
-                    } else {
-                        currentLocal = CGRect(x: targetLocal.origin.x, y: targetLocal.origin.y, width: targetLocal.width, height: 0)
-                    }
-                } else {
-                    if expandFromRight {
-                        currentLocal = CGRect(x: targetLocal.maxX, y: targetLocal.origin.y, width: 0, height: targetLocal.height)
-                    } else {
-                        currentLocal = CGRect(x: targetLocal.origin.x, y: targetLocal.origin.y, width: 0, height: targetLocal.height)
-                    }
-                }
-                
-                boxes.append(BoxState(
-                    currentFrame: currentLocal,
-                    targetFrame: targetLocal,
-                    startOpacity: 0.0,
-                    targetOpacity: 1.0,
-                    bundleId: bundleId
+                    bundleId: frameInfo.bundleId
                 ))
             }
-        }
+            model.sourceBoxes = src
+            
+            // Populate targetBoxes (for non-interactive path)
+            var dst: [BoxState] = []
+            for frameInfo in newFrames {
+                let local = CGRect(
+                    x: frameInfo.frame.origin.x - screenRectYDown.origin.x,
+                    y: frameInfo.frame.origin.y - screenRectYDown.origin.y,
+                    width: frameInfo.frame.width,
+                    height: frameInfo.frame.height
+                )
+                dst.append(BoxState(
+                    currentFrame: local,
+                    targetFrame: local,
+                    startOpacity: 0.0,
+                    targetOpacity: 1.0,
+                    bundleId: frameInfo.bundleId
+                ))
+            }
+            model.targetBoxes = dst
+            
+            model.direction = direction
+            model.progress = 0.0
+            
+            if !isInteractive {
+                model.animate = true
+            }
+        } else {
+            let screenWidth = screenRectYDown.width
+            let screenHeight = screenRectYDown.height
+            
+            var boxes: [BoxState] = []
+            let maxCount = max(oldFrames.count, newFrames.count)
+            
+            for i in 0..<maxCount {
+                if i < oldFrames.count && i < newFrames.count {
+                    let old = oldFrames[i].frame
+                    let new = newFrames[i].frame
+                    let bundleId = newFrames[i].bundleId ?? oldFrames[i].bundleId
+                    let currentLocal = CGRect(
+                        x: old.origin.x - screenRectYDown.origin.x,
+                        y: old.origin.y - screenRectYDown.origin.y,
+                        width: old.width,
+                        height: old.height
+                    )
+                    let targetLocal = CGRect(
+                        x: new.origin.x - screenRectYDown.origin.x,
+                        y: new.origin.y - screenRectYDown.origin.y,
+                        width: new.width,
+                        height: new.height
+                    )
+                    boxes.append(BoxState(
+                        currentFrame: currentLocal,
+                        targetFrame: targetLocal,
+                        startOpacity: 1.0,
+                        targetOpacity: 1.0,
+                        bundleId: bundleId
+                    ))
+                } else if i < oldFrames.count {
+                    let old = oldFrames[i].frame
+                    let bundleId = oldFrames[i].bundleId
+                    let currentLocal = CGRect(
+                        x: old.origin.x - screenRectYDown.origin.x,
+                        y: old.origin.y - screenRectYDown.origin.y,
+                        width: old.width,
+                        height: old.height
+                    )
+                    // Retract width or height to edge instead of scaling to center
+                    let retractToRight = (currentLocal.midX > screenWidth / 2)
+                    let retractToBottom = (currentLocal.midY > screenHeight / 2)
+                    
+                    let targetLocal: CGRect
+                    if currentLocal.width > currentLocal.height {
+                        if retractToBottom {
+                            targetLocal = CGRect(x: currentLocal.origin.x, y: currentLocal.maxY, width: currentLocal.width, height: 0)
+                        } else {
+                            targetLocal = CGRect(x: currentLocal.origin.x, y: currentLocal.origin.y, width: currentLocal.width, height: 0)
+                        }
+                    } else {
+                        if retractToRight {
+                            targetLocal = CGRect(x: currentLocal.maxX, y: currentLocal.origin.y, width: 0, height: currentLocal.height)
+                        } else {
+                            targetLocal = CGRect(x: currentLocal.origin.x, y: currentLocal.origin.y, width: 0, height: currentLocal.height)
+                        }
+                    }
+                    
+                    boxes.append(BoxState(
+                        currentFrame: currentLocal,
+                        targetFrame: targetLocal,
+                        startOpacity: 1.0,
+                        targetOpacity: 0.0,
+                        bundleId: bundleId
+                    ))
+                } else {
+                    let new = newFrames[i].frame
+                    let bundleId = newFrames[i].bundleId
+                    let targetLocal = CGRect(
+                        x: new.origin.x - screenRectYDown.origin.x,
+                        y: new.origin.y - screenRectYDown.origin.y,
+                        width: new.width,
+                        height: new.height
+                    )
+                    // Expand width or height from edge instead of scaling from center
+                    let expandFromRight = (targetLocal.midX > screenWidth / 2)
+                    let expandFromBottom = (targetLocal.midY > screenHeight / 2)
+                    
+                    let currentLocal: CGRect
+                    if targetLocal.width > targetLocal.height {
+                        if expandFromBottom {
+                            currentLocal = CGRect(x: targetLocal.origin.x, y: targetLocal.maxY, width: targetLocal.width, height: 0)
+                        } else {
+                            currentLocal = CGRect(x: targetLocal.origin.x, y: targetLocal.origin.y, width: targetLocal.width, height: 0)
+                        }
+                    } else {
+                        if expandFromRight {
+                            currentLocal = CGRect(x: targetLocal.maxX, y: targetLocal.origin.y, width: 0, height: targetLocal.height)
+                        } else {
+                            currentLocal = CGRect(x: targetLocal.origin.x, y: targetLocal.origin.y, width: 0, height: targetLocal.height)
+                        }
+                    }
+                    
+                    boxes.append(BoxState(
+                        currentFrame: currentLocal,
+                        targetFrame: targetLocal,
+                        startOpacity: 0.0,
+                        targetOpacity: 1.0,
+                        bundleId: bundleId
+                    ))
+                }
+            }
 
-        self.model.boxes = boxes
-        self.model.animate = !isInteractive
+            self.model.boxes = boxes
+            self.model.animate = !isInteractive
+        }
 
         let viewSize = screenRectYDown.size
         let overlayView = SwitchOverlayView(model: model, viewSize: viewSize)
@@ -306,11 +366,101 @@ private final class SwitchOverlayWindow: NSWindow {
 
     func fadeIn() {
         self.alphaValue = 1.0
+        if model.mode == "slide" && model.animate {
+            model.progress = 0.0
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.95)) {
+                model.progress = model.direction
+            }
+        }
+    }
+
+    func setInteractiveProgress(_ progress: CGFloat) {
+        if model.mode == "slide" {
+            self.model.progress = 0.0 // Sticky till trigger
+            let dir: CGFloat = progress < 0 ? -1.0 : (progress > 0 ? 1.0 : 0.0)
+            if dir != 0.0 && dir != model.direction {
+                model.direction = dir
+                
+                if let monitor = WorkspaceManager.shared.monitors.first(where: { $0.screen == self.targetScreen }) {
+                    let count = Config.shared.workspaceCount
+                    let active = monitor.active
+                    let targetIndex: Int
+                    if dir < 0 {
+                        targetIndex = Config.shared.workspaceLoopEnabled ? (active + 1) % count : min(active + 1, count - 1)
+                    } else {
+                        targetIndex = Config.shared.workspaceLoopEnabled ? (active - 1 + count) % count : max(active - 1, 0)
+                    }
+                    
+                    let targetTiledWindows = monitor.workspaces[targetIndex].filter { !$0.isFloating }
+                    let targetLayout = monitor.layouts[targetIndex]
+                    let targetMasterRatio = monitor.masterRatios[targetIndex]
+                    let targetStackRatios = monitor.stackRatios[targetIndex]
+                    let screenRect = WindowManager.screenFrame(for: monitor.screen)
+                    let targetFrames = Tiler.calculateFrames(
+                        count: targetTiledWindows.count,
+                        screen: screenRect,
+                        layout: targetLayout,
+                        masterRatio: targetMasterRatio,
+                        stackRatios: targetStackRatios
+                    )
+                    
+                    let screenRectYDown = WindowManager.screenRect(for: monitor.screen)
+                    var targetBoxes: [BoxState] = []
+                    for (i, frame) in targetFrames.enumerated() {
+                        let bundleId = i < targetTiledWindows.count ? NSRunningApplication(processIdentifier: targetTiledWindows[i].pid)?.bundleIdentifier : nil
+                        let local = CGRect(
+                            x: frame.origin.x - screenRectYDown.origin.x,
+                            y: frame.origin.y - screenRectYDown.origin.y,
+                            width: frame.width,
+                            height: frame.height
+                        )
+                        targetBoxes.append(BoxState(
+                            currentFrame: local,
+                            targetFrame: local,
+                            startOpacity: 0.0,
+                            targetOpacity: 1.0,
+                            bundleId: bundleId
+                        ))
+                    }
+                    self.model.targetBoxes = targetBoxes
+                }
+            }
+        } else {
+            self.model.progress = progress
+        }
     }
 
     func commit(to newFrames: [CapturedWindowInfo]) {
         guard !isCommitted else { return }
         isCommitted = true
+
+        if model.mode == "slide" {
+            let screenRectYDown = WindowManager.screenRect(for: self.targetScreen)
+            var targetBoxes: [BoxState] = []
+            for frameInfo in newFrames {
+                let local = CGRect(
+                    x: frameInfo.frame.origin.x - screenRectYDown.origin.x,
+                    y: frameInfo.frame.origin.y - screenRectYDown.origin.y,
+                    width: frameInfo.frame.width,
+                    height: frameInfo.frame.height
+                )
+                targetBoxes.append(BoxState(
+                    currentFrame: local,
+                    targetFrame: local,
+                    startOpacity: 0.0,
+                    targetOpacity: 1.0,
+                    bundleId: frameInfo.bundleId
+                ))
+            }
+            model.targetBoxes = targetBoxes
+            
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.95)) {
+                model.progress = model.direction
+                model.animate = true
+            }
+            self.alphaValue = 1.0
+            return
+        }
 
         let screenRectYDown = WindowManager.screenRect(for: self.targetScreen)
         let screenWidth = screenRectYDown.width
@@ -423,52 +573,88 @@ private struct SwitchOverlayView: View {
     let viewSize: CGSize
 
     var body: some View {
+        let theme = Config.shared.switchOverlayColor
+        let isDark = theme == "dark" || (theme == "system" && colorScheme == .dark)
+        let isLight = theme == "light" || (theme == "system" && colorScheme == .light)
+
         ZStack(alignment: .topLeading) {
             Color.clear
             
-            ForEach(model.boxes) { box in
-                let frame = model.animate ? box.targetFrame : box.currentFrame
-                let opacity = model.animate ? box.targetOpacity : box.startOpacity
+            if model.mode == "slide" {
+                // Source workspace grid (slides off)
+                ForEach(model.sourceBoxes) { box in
+                    let xOffset = model.progress * viewSize.width
+                    let opacity = 1.0 - Double(abs(model.progress))
+                    
+                    panel(box: box, isDark: isDark, isLight: isLight)
+                        .frame(width: max(0, box.currentFrame.width), height: max(0, box.currentFrame.height))
+                        .offset(x: box.currentFrame.origin.x + xOffset, y: box.currentFrame.origin.y)
+                        .opacity(opacity)
+                }
                 
-                let theme = Config.shared.switchOverlayColor
-                let isDark = theme == "dark" || (theme == "system" && colorScheme == .dark)
-                let isLight = theme == "light" || (theme == "system" && colorScheme == .light)
-                
-                let tintColor = isDark ? Color.black : (isLight ? Color.white : Color.accentColor)
-                let fillColor = tintColor.opacity(Config.shared.switchOverlayColorOpacity)
-                let borderColor = isDark ? Color.white.opacity(0.15) : (isLight ? Color.black.opacity(0.15) : Color.accentColor.opacity(0.25))
-                
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(fillColor)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(borderColor, lineWidth: 1)
-                    )
-                    .overlay(
-                        Group {
-                            if Config.shared.switchOverlayShowIcons, let bundleId = box.bundleId, let nsImage = AppIconCache.shared.icon(for: bundleId) {
-                                Image(nsImage: nsImage)
-                                    .resizable()
-                                    .frame(width: Config.shared.switchOverlayIconSize, height: Config.shared.switchOverlayIconSize)
-                                    .shadow(color: Color.black.opacity(0.15), radius: 2, x: 0, y: 1)
-                            }
-                        }
-                    )
-                    .applyGlassViewIfAvailable(cornerRadius: 12)
-                    .frame(width: max(0, frame.width), height: max(0, frame.height))
-                    .offset(x: frame.origin.x, y: frame.origin.y)
-                    .opacity(opacity)
+                // Target workspace grid (slides on)
+                ForEach(model.targetBoxes) { box in
+                    let xOffset = (model.progress - model.direction) * viewSize.width
+                    let opacity = Double(abs(model.progress))
+                    
+                    panel(box: box, isDark: isDark, isLight: isLight)
+                        .frame(width: max(0, box.currentFrame.width), height: max(0, box.currentFrame.height))
+                        .offset(x: box.currentFrame.origin.x + xOffset, y: box.currentFrame.origin.y)
+                        .opacity(opacity)
+                }
+            } else {
+                // Morph mode
+                ForEach(model.boxes) { box in
+                    let frame = model.animate ? box.targetFrame : box.currentFrame
+                    let opacity = model.animate ? box.targetOpacity : box.startOpacity
+                    
+                    panel(box: box, isDark: isDark, isLight: isLight)
+                        .frame(width: max(0, frame.width), height: max(0, frame.height))
+                        .offset(x: frame.origin.x, y: frame.origin.y)
+                        .opacity(opacity)
+                }
             }
         }
         .frame(width: viewSize.width, height: viewSize.height)
         .ignoresSafeArea()
         .onAppear {
-            if model.animate {
+            if model.mode == "slide" {
+                if model.animate {
+                    model.progress = 0.0
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.95)) {
+                        model.progress = model.direction
+                    }
+                }
+            } else if model.mode == "morph" && model.animate {
                 model.animate = false
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.95)) {
                     model.animate = true
                 }
             }
         }
+    }
+
+    private func panel(box: BoxState, isDark: Bool, isLight: Bool) -> some View {
+        let fillColor = isDark ? Color.black : (isLight ? Color.white : Color.accentColor)
+        let opacity = Config.shared.switchOverlayColorOpacity
+        let borderColor = isDark ? Color.white.opacity(0.15) : (isLight ? Color.black.opacity(0.15) : Color.accentColor.opacity(0.25))
+        
+        return RoundedRectangle(cornerRadius: 12)
+            .fill(fillColor.opacity(opacity))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(borderColor, lineWidth: 1)
+            )
+            .overlay(
+                Group {
+                    if Config.shared.switchOverlayShowIcons, let bundleId = box.bundleId, let nsImage = AppIconCache.shared.icon(for: bundleId) {
+                        Image(nsImage: nsImage)
+                            .resizable()
+                            .frame(width: Config.shared.switchOverlayIconSize, height: Config.shared.switchOverlayIconSize)
+                            .shadow(color: Color.black.opacity(0.15), radius: 2, x: 0, y: 1)
+                    }
+                }
+            )
+            .applyGlassViewIfAvailable(cornerRadius: 12)
     }
 }

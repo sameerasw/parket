@@ -56,6 +56,7 @@ package final class WorkspaceManager {
     func switchTo(_ index: Int, isPersistent: Bool = false, isGesture: Bool = false) {
         let prevIndex = focusedMonitor.active
         let oldFrames = focusedMonitor.captureWindowFrames()
+        let count = Config.shared.workspaceCount
         
         let targetTiledWindows = focusedMonitor.workspaces[index].filter { !$0.isFloating }
         let targetLayout = focusedMonitor.layouts[index]
@@ -77,7 +78,15 @@ package final class WorkspaceManager {
         }
         
         pendingActiveWorkspaceIndex = index
-        SwitchOverlayManager.shared.show(from: oldFrames, to: newFrames, on: focusedMonitor.screen)
+        let direction: CGFloat
+        if index == (prevIndex - 1 + count) % count {
+            direction = 1.0
+        } else if index == (prevIndex + 1) % count {
+            direction = -1.0
+        } else {
+            direction = index < prevIndex ? 1.0 : -1.0
+        }
+        SwitchOverlayManager.shared.show(from: oldFrames, to: newFrames, on: focusedMonitor.screen, direction: direction)
         
         if Config.shared.switchOverlayDelayEnabled && isGesture {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
@@ -99,7 +108,6 @@ package final class WorkspaceManager {
             StatusBar.shared.update()
         }
         
-        let count = Config.shared.workspaceCount
         var slideOffset: CGFloat = 0
         if prevIndex != index {
             let movingRight = (index == (prevIndex + 1) % count) || (index > prevIndex && !(prevIndex == 0 && index == count - 1))
@@ -304,7 +312,7 @@ package final class WorkspaceManager {
             return CapturedWindowInfo(frame: frame, bundleId: bundleId)
         }
         
-        SwitchOverlayManager.shared.show(from: oldFrames, to: newFrames, on: focusedMonitor.screen)
+        SwitchOverlayManager.shared.show(from: oldFrames, to: newFrames, on: focusedMonitor.screen, direction: -1.0)
         
         if Config.shared.switchOverlayDelayEnabled {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {

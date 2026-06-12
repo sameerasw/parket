@@ -73,6 +73,7 @@
 # switch_overlay_show_icons = true
 # switch_overlay_icon_size = 64.0
 # switch_overlay_color_opacity = 0.2
+# switch_overlay_mode = "morph" # "morph", "slide"
 
 # global modifier key: "option", "control", "command"
 # modifier = "option"

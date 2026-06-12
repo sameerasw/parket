@@ -201,7 +201,7 @@ package final class TrackpadManager {
                 let noiseThreshold = threshold * 0.05
                 if abs(diff) >= noiseThreshold {
                     let focusedMonitor = WorkspaceManager.shared.focusedMonitor
-                    let currentProgress = CGFloat(abs(diff) / threshold)
+                    let currentProgress = CGFloat(diff / threshold)
                     SwitchOverlayManager.shared.updateInteractiveProgress(
                         currentProgress,
                         on: focusedMonitor.screen,

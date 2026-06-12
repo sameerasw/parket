@@ -34,7 +34,7 @@ package final class MouseGestureManager {
         let noiseThreshold = threshold * 0.05
         if abs(diffX) >= noiseThreshold {
             let focusedMonitor = WorkspaceManager.shared.focusedMonitor
-            let currentProgress = CGFloat(abs(diffX) / threshold)
+            let currentProgress = CGFloat(diffX / threshold)
             SwitchOverlayManager.shared.updateInteractiveProgress(
                 currentProgress,
                 on: focusedMonitor.screen,
