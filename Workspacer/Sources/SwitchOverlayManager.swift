@@ -110,7 +110,7 @@ private final class SwitchOverlayWindow: NSWindow {
         )
 
         self.isReleasedWhenClosed = false
-        self.level = .statusBar // below HUD (.statusBar + 1) but above everything else
+        self.level = .floating // just above normal tiled windows, but below status bar, dock, and notifications
         self.backgroundColor = .clear
         self.hasShadow = false
         self.ignoresMouseEvents = true
